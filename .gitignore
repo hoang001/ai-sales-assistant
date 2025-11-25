@@ -1,0 +1,14 @@
+# Chặn file môi trường ảo
+venv/
+env/
+.env
+
+# Chặn file rác Python
+__pycache__/
+*.pyc
+
+# Chặn file dữ liệu hệ điều hành
+.DS_Store
+
+# Chặn file dữ liệu nhạy cảm
+*.key

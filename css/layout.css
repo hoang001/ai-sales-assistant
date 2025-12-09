@@ -1,0 +1,717 @@
+/* ===== MAIN LAYOUT ===== */
+.chat-main {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  position: relative;
+}
+
+.chat-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  width: 100%;
+  transition: all 0.4s cubic-bezier(0.2, 0.9, 0.2, 1);
+}
+
+.chat-section.with-panel {
+  width: 60%;
+  margin-right: 40%;
+}
+
+/* ===== CHAT CONTENT ===== */
+.chat-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--spacing-2xl) var(--spacing-xl);
+  position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: var(--primary-color) transparent;
+  width: 100%;
+}
+
+.chat-content::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-content::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-content::-webkit-scrollbar-thumb {
+  background: var(--gradient-primary);
+  border-radius: var(--radius-full);
+  opacity: 0.3;
+}
+
+.chat-content::-webkit-scrollbar-thumb:hover {
+  opacity: 0.5;
+}
+
+.messages-area {
+  max-width: 800px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-xl);
+  width: 100%;
+  padding-bottom: var(--spacing-2xl);
+  min-height: 100%;
+}
+
+/* ===== PRODUCT PANEL LAYOUT ===== */
+.product-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 42%;
+  min-width: 480px;
+  transform: translateX(100%);
+}
+
+.product-panel.active {
+  transform: translateX(0);
+}
+
+/* ===== AI THINKING LOADER ===== */
+.typing-indicator .message-content {
+  background: transparent !important;
+  border: none !important;
+  box-shadow: none !important;
+  padding: 25px 35px !important;
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ai-thinking-loader {
+  position: relative;
+  width: 75px;
+  height: 100px;
+  margin: 0 auto;
+}
+
+.ai-thinking-loader .loader__bar {
+  position: absolute;
+  bottom: 0;
+  width: 8px;
+  height: 40px;
+  transform-origin: center bottom;
+  border-radius: 4px;
+  opacity: 0.9;
+  background: linear-gradient(to top, var(--primary-color), var(--secondary-color));
+}
+
+.ai-thinking-loader .loader__bar:nth-child(1) {
+  left: 0px;
+  transform: scale(1, 0.2);
+  animation: barUp1 4s infinite;
+}
+
+.ai-thinking-loader .loader__bar:nth-child(2) {
+  left: 15px;
+  transform: scale(1, 0.4);
+  animation: barUp2 4s infinite;
+}
+
+.ai-thinking-loader .loader__bar:nth-child(3) {
+  left: 30px;
+  transform: scale(1, 0.6);
+  animation: barUp3 4s infinite;
+}
+
+.ai-thinking-loader .loader__bar:nth-child(4) {
+  left: 45px;
+  transform: scale(1, 0.8);
+  animation: barUp4 4s infinite;
+}
+
+.ai-thinking-loader .loader__bar:nth-child(5) {
+  left: 60px;
+  transform: scale(1, 1);
+  animation: barUp5 4s infinite;
+}
+
+.ai-thinking-loader .loader__ball {
+  position: absolute;
+  bottom: 10px;
+  left: 0;
+  width: 10px;
+  height: 10px;
+  background: var(--accent-color);
+  border-radius: 50%;
+  animation: ball624 4s infinite;
+  box-shadow: 0 0 12px rgba(140, 90, 255, 0.55);
+}
+
+/* Bar Animations */
+@keyframes barUp1 {
+  0%, 40% { transform: scale(1, 0.2); }
+  50%, 90% { transform: scale(1, 1); }
+  100% { transform: scale(1, 0.2); }
+}
+
+@keyframes barUp2 {
+  0%, 40% { transform: scale(1, 0.4); }
+  50%, 90% { transform: scale(1, 0.8); }
+  100% { transform: scale(1, 0.4); }
+}
+
+@keyframes barUp3 {
+  0%, 100% { transform: scale(1, 0.6); }
+}
+
+@keyframes barUp4 {
+  0%, 40% { transform: scale(1, 0.8); }
+  50%, 90% { transform: scale(1, 0.4); }
+  100% { transform: scale(1, 0.8); }
+}
+
+@keyframes barUp5 {
+  0%, 40% { transform: scale(1, 1); }
+  50%, 90% { transform: scale(1, 0.2); }
+  100% { transform: scale(1, 1); }
+}
+
+@keyframes ball624 {
+  0% { transform: translate(0, 0); }
+  5% { transform: translate(8px, -14px); }
+  10% { transform: translate(15px, -10px); }
+  17% { transform: translate(23px, -24px); }
+  20% { transform: translate(30px, -20px); }
+  27% { transform: translate(38px, -34px); }
+  30% { transform: translate(45px, -30px); }
+  37% { transform: translate(53px, -44px); }
+  40% { transform: translate(60px, -40px); }
+  50% { transform: translate(60px, 0); }
+  57% { transform: translate(53px, -14px); }
+  60% { transform: translate(45px, -10px); }
+  67% { transform: translate(37px, -24px); }
+  70% { transform: translate(30px, -20px); }
+  77% { transform: translate(22px, -34px); }
+  80% { transform: translate(15px, -30px); }
+  87% { transform: translate(7px, -44px); }
+  90% { transform: translate(0, -40px); }
+  100% { transform: translate(0, 0); }
+}
+
+/* =========================================================
+   SEND BUTTON SPINNER
+========================================================= */
+
+.send-btn {
+  position: relative;
+}
+
+.send-icon {
+  transition: opacity 0.3s ease;
+}
+
+/* Spinner khi gửi tin */
+.send-spinner {
+  width: 20px;
+  height: 20px;
+  cursor: not-allowed;
+  border-radius: 50%;
+  border: 2px solid #444;
+  box-shadow: 
+    -10px -10px 10px #6359f8,
+    0px -10px 10px #9c32e2,
+    10px -10px 10px #f36896,
+    10px 0 10px #ff0b0b,
+    10px 10px 10px #ff5500,
+    0 10px 10px #ff9500,
+    -10px 10px 10px #ffb700;
+  animation: rot55 0.7s linear infinite;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.spinnerin {
+  border: 2px solid #444;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* Spinner rotation */
+@keyframes rot55 {
+  0% { transform: translate(-50%, -50%) rotate(0deg); }
+  100% { transform: translate(-50%, -50%) rotate(360deg); }
+}
+
+/* ===== RESPONSIVE DESIGN ===== */
+@media (max-width: 1200px) {
+  .chat-content {
+    padding: var(--spacing-xl);
+  }
+  
+  .product-panel {
+    width: 45%;
+    min-width: 450px;
+  }
+  
+  .product-panel.active ~ .chat-section {
+    width: 55%;
+  }
+  
+  .product-card {
+    max-width: 280px;
+  }
+}
+
+@media (max-width: 992px) {
+  .product-panel {
+    width: 50%;
+    min-width: 400px;
+  }
+  
+  .product-panel.active ~ .chat-section {
+    width: 50%;
+  }
+  
+  .header-actions {
+    gap: var(--spacing-md);
+  }
+  
+  .new-chat-btn {
+    padding: 10px;
+    min-width: 44px;
+  }
+  
+  .header-theme-toggle .theme-switch {
+    --toggle-size: 10px;
+  }
+  
+  .container {
+    width: 300px;
+    height: 300px;
+  }
+  
+  .loading-text {
+    font-size: 16px;
+  }
+  
+  .product-card {
+    max-width: 260px;
+  }
+  
+  .product-name {
+    font-size: 20px;
+  }
+  
+  .product-price {
+    font-size: 24px;
+  }
+  
+  /* Responsive cho send spinner */
+  .send-spinner {
+    width: 20px;
+    height: 20px;
+  }
+  
+  .send-spinner .spinnerin {
+    width: 10px;
+    height: 10px;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-header {
+    padding: 0 var(--spacing-lg);
+  }
+  
+  .header-content {
+    padding: var(--spacing-lg) 0;
+  }
+  
+  .chat-content {
+    padding: var(--spacing-lg);
+  }
+  
+  .input-area {
+    padding: 0 var(--spacing-lg);
+  }
+  
+  .product-panel {
+    width: 100%;
+    min-width: 100%;
+    transform: translateX(100%);
+  }
+  
+  .product-panel.active {
+    transform: translateX(0);
+  }
+  
+  .product-panel.active ~ .chat-section {
+    width: 0;
+    overflow: hidden;
+    transform: translateX(-100%);
+  }
+  
+  .welcome-message {
+    position: relative;
+    top: auto;
+    left: auto;
+    transform: none;
+    margin: 80px auto 0;
+    padding: 0 20px;
+  }
+  
+  .welcome-message h2 {
+    font-size: 24px;
+  }
+  
+  .message {
+    max-width: 90%;
+  }
+  
+  .product-card {
+    max-width: 240px;
+  }
+  
+  .product-image {
+    height: 160px;
+  }
+  
+  .product-name {
+    font-size: 18px;
+  }
+  
+  .product-price {
+    font-size: 22px;
+  }
+  
+  .btn-details {
+    padding: 12px 24px;
+    font-size: 14px;
+    min-width: 140px;
+  }
+  
+  .action-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 16px;
+  }
+  
+  .header-theme-toggle .theme-switch {
+    --toggle-size: 8px;
+  }
+  
+  #messageInput {
+    min-height: 56px;
+    font-size: 14px;
+  }
+  
+  .container {
+    width: 250px;
+    height: 250px;
+  }
+  
+  .moon {
+    height: 120px;
+    width: 120px;
+  }
+  
+  .orbit {
+    height: 200px;
+    width: 200px;
+  }
+  
+  .rocket {
+    height: 40px;
+    width: 20px;
+    left: -9px;
+    top: 80px;
+  }
+  
+  .loading-text {
+    font-size: 14px;
+  }
+  
+  .notification-container {
+    top: 70px;
+    width: 90%;
+  }
+  
+  .success-notification,
+  .error-notification {
+    width: 100%;
+    max-width: 320px;
+    padding: 14px 18px;
+  }
+  
+  .success-notification .message-text,
+  .error-notification .message-text {
+    font-size: 15px;
+  }
+  
+  .success-notification .sub-text,
+  .error-notification .sub-text {
+    font-size: 13px;
+  }
+  
+  /* Panel responsive */
+  .product-panel.active {
+    width: 100%;
+    min-width: 100%;
+  }
+  
+  .panel-header {
+    padding: 20px 24px;
+  }
+  
+  .panel-content {
+    padding: 24px;
+  }
+  
+  .product-details-card {
+    padding: 24px;
+  }
+  
+  .specs-grid,
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .highlights-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .delivery-info {
+    grid-template-columns: 1fr;
+  }
+  
+  /* Responsive cho send spinner */
+  .send-spinner {
+    width: 18px;
+    height: 18px;
+    border-width: 1.5px;
+  }
+  
+  .send-spinner .spinnerin {
+    width: 9px;
+    height: 9px;
+    border-width: 1.5px;
+  }
+}
+
+@media (max-width: 480px) {
+  .ai-logo {
+    width: 40px;
+    height: 40px;
+    font-size: 20px;
+  }
+  
+  .logo-text h1 {
+    font-size: 18px;
+  }
+  
+  .logo-text .subtitle {
+    font-size: 12px;
+  }
+  
+  .header-actions {
+    gap: var(--spacing-sm);
+  }
+  
+  .new-chat-btn {
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border-radius: 50%;
+  }
+  
+  .chat-content {
+    padding: var(--spacing-md);
+  }
+  
+  .input-area {
+    padding: 0 var(--spacing-md);
+  }
+  
+  .welcome-message {
+    margin: 60px auto 0;
+  }
+  
+  .welcome-icon {
+    font-size: 40px;
+  }
+  
+  .welcome-message h2 {
+    font-size: 20px;
+  }
+  
+  #messageInput {
+    padding: 12px 14px;
+    font-size: 14px;
+    min-height: 56px;
+  }
+  
+  .action-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+  
+  .header-theme-toggle .theme-switch {
+    --toggle-size: 6px;
+  }
+  
+  .product-card {
+    max-width: 220px;
+  }
+  
+  .product-image {
+    height: 140px;
+  }
+  
+  .product-name {
+    font-size: 16px;
+  }
+  
+  .product-price {
+    font-size: 20px;
+  }
+  
+  .btn-details {
+    padding: 10px 20px;
+    font-size: 13px;
+    min-width: 120px;
+  }
+  
+  .container {
+    width: 200px;
+    height: 200px;
+  }
+  
+  .moon {
+    height: 100px;
+    width: 100px;
+  }
+  
+  .orbit {
+    height: 160px;
+    width: 160px;
+  }
+  
+  .rocket {
+    height: 35px;
+    width: 18px;
+    left: -8px;
+    top: 65px;
+  }
+  
+  .crater {
+    height: 20px;
+    width: 20px;
+  }
+  
+  .loading-text {
+    font-size: 12px;
+  }
+  
+  .notification-container {
+    top: 60px;
+    width: 95%;
+  }
+  
+  .success-notification,
+  .error-notification {
+    max-width: 280px;
+    padding: 12px 16px;
+    gap: 12px;
+  }
+  
+  .success-notification .icon-container,
+  .error-notification .icon-container {
+    width: 36px;
+    height: 36px;
+  }
+  
+  .success-notification .icon,
+  .error-notification .icon {
+    width: 18px;
+    height: 18px;
+  }
+  
+  .success-notification .message-text,
+  .error-notification .message-text {
+    font-size: 14px;
+  }
+  
+  .success-notification .sub-text,
+  .error-notification .sub-text {
+    font-size: 12px;
+  }
+  
+  /* Panel responsive for small screens */
+  .panel-header {
+    padding: 16px 20px;
+  }
+  
+  .panel-content {
+    padding: 20px;
+  }
+  
+  .product-details-card {
+    padding: 20px;
+  }
+  
+  .product-details-header {
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  .product-details-name {
+    max-width: 100%;
+    font-size: 22px;
+  }
+  
+  .product-details-price {
+    font-size: 28px;
+    align-self: flex-start;
+  }
+  
+  .product-image-container {
+    height: 180px;
+  }
+  
+  .product-details-badges {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .badge {
+    justify-content: center;
+  }
+  
+  .delivery-item {
+    padding: 16px;
+  }
+  
+  /* Responsive cho send spinner */
+  .send-spinner {
+    width: 16px;
+    height: 16px;
+    border-width: 1.5px;
+  }
+  
+  .send-spinner .spinnerin {
+    width: 8px;
+    height: 8px;
+    border-width: 1.5px;
+  }
+}

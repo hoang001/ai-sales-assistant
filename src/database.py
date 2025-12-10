@@ -28,7 +28,7 @@ class DatabaseManager:
                 stock INTEGER,
                 category TEXT,
                 rag_content TEXT,
-                discount_rate INTEGER DEFAULT 0  -- <--- CỘT MỚI
+                discount_rate INTEGER DEFAULT 0  
             )
         ''')
         

@@ -1,14 +1,22 @@
-# Chặn file môi trường ảo
+# Bỏ qua môi trường ảo
+.venv/
 venv/
 env/
+
+# Bỏ qua file cấu hình nhạy cảm (CHỨA API KEY)
 .env
 
-# Chặn file rác Python
+# Bỏ qua Database & Dữ liệu
+store.db
+data/vector_db/
+*.sqlite3
+
+# Bỏ qua file rác của Python (tự sinh ra khi chạy)
 __pycache__/
 *.pyc
+.ipynb_checkpoints/
+.idea/
+.vscode/
 
-# Chặn file dữ liệu hệ điều hành
-.DS_Store
-
-# Chặn file dữ liệu nhạy cảm
-*.key
+# Bỏ qua logs
+*.log

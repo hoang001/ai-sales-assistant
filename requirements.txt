@@ -1,9 +1,18 @@
+# Core Backend
+fastapi
+uvicorn
+python-dotenv
 requests
-beautifulsoup4
-lxml
+
+# AI & LangChain
+google-generativeai
 langchain
 langchain-community
-chromadb
-sentence-transformers
 langchain-huggingface
 langchain-chroma
+chromadb
+sentence-transformers
+
+# Data Processing
+beautifulsoup4
+lxml

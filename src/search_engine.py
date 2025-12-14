@@ -15,7 +15,7 @@ class StoreSearchEngine:
                 persist_directory=str(settings.VECTOR_DB_PATH),
                 embedding_function=self.embedding_model
             )
-            print(f"✅ RAG: Đã kết nối DB tại {settings.VECTOR_DB_PATH}")
+            print(f"RAG: Da ket noi DB tai {settings.VECTOR_DB_PATH}")
         else:
             self.vector_db = None
             print("⚠️ RAG: Chưa có dữ liệu Vector.")

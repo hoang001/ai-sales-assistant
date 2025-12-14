@@ -6,6 +6,16 @@ let messageCount = 0;
 
 const API_URL = "https://faddiest-overcasuistical-mollie.ngrok-free.dev";
 
+// Helper function để proxy ảnh qua HTTPS (giải quyết Mixed Content)
+function getProxyImageUrl(originalUrl) {
+    if (!originalUrl || originalUrl.includes('via.placeholder.com')) {
+        return originalUrl; // Placeholder images không cần proxy
+    }
+    // Encode URL và tạo proxy URL
+    const encodedUrl = encodeURIComponent(originalUrl);
+    return `${API_URL}/proxy-image?url=${encodedUrl}`;
+}
+
 // 1. KHỞI TẠO
 document.addEventListener('DOMContentLoaded', () => {
     console.log('AI Assistant Ready - V3 UI');
@@ -182,7 +192,7 @@ function processBackendResponse(markdownText) {
             <div class="product-card-inline" style="display: flex; gap: 15px; margin: 15px 0; background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e0e0e0; align-items: start;">
                 
                 <div class="product-image-inline" style="flex-shrink: 0; width: 120px; height: 120px; border-radius: 8px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; border: 1px solid #f0f0f0;">
-                    <img src="${productData.imgUrl}" alt="${productData.name}" style="width: 100%; height: 100%; object-fit: contain;">
+                    <img src="${getProxyImageUrl(productData.imgUrl)}" alt="${productData.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='https://via.placeholder.com/120x120?text=No+Image'">
                 </div>
 
                 <div class="product-info-inline" style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
@@ -284,7 +294,7 @@ window.openProductPanel = function(encodedJson) {
                 const panel = document.getElementById('panelContent');
                 if(panel) {
                     const img = panel.querySelector('.product-detail-image');
-                    if(img) img.src = product.imgUrl;
+                    if(img) img.src = getProxyImageUrl(product.imgUrl);
                     
                     const price = panel.querySelector('.product-details-price');
                     if(price) price.textContent = product.price;

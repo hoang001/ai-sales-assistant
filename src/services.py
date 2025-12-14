@@ -16,7 +16,7 @@ except ImportError:
 
 class StoreService:
     def __init__(self):
-        print("⏳ Đang tải RAG Engine...")
+        print("Dang tai RAG Engine...")
         self.rag = StoreSearchEngine() if StoreSearchEngine else None
 
     def search_products(self, query: str, limit: int = 10):
@@ -47,7 +47,7 @@ class StoreService:
             if row:
                 original_price, img_url, discount, rating, reviews, specs_text = row
                 
-                print(f"✅ Tìm thấy SQL: {name} | Ảnh: {str(img_url)[:30]}...")
+                print(f"Tim thay SQL: {name} | Anh: {str(img_url)[:30]}...")
 
                 # 1. Xử lý URL ảnh an toàn
                 if img_url and len(str(img_url)) > 5:
@@ -101,7 +101,7 @@ class StoreService:
         if item:
             name, price, stock, discount = item
             final_price = price * (1 - discount/100)
-            status = f"✅ CÒN {stock} chiếc" if stock > 0 else "❌ HẾT HÀNG"
+            status = f"CON {stock} chiec" if stock > 0 else "HET HANG"
             return f"Sản phẩm **{name}**\n- Tình trạng: {status}\n- Giá hiện tại: {final_price:,.0f}đ (Đã giảm {discount}%)"
         return "Không tìm thấy sản phẩm này."
 
@@ -134,9 +134,9 @@ def find_nearest_store(self, lat: float, lng: float):
 
         results = data.get("local_results", [])
         if not results:
-            return "❌ Em không tìm thấy cửa hàng CellPhoneS nào gần vị trí của anh/chị."
+            return "Em khong tim thay cua hang CellPhoneS nao gan vi tri cua anh/chi."
 
-        # 👉 CHỈ LẤY CỬA HÀNG GẦN NHẤT
+        # CHI LAY CUA HANG GAN NHAT
         store = results[0]
 
         name = store.get("title")
@@ -154,7 +154,7 @@ def find_nearest_store(self, lat: float, lng: float):
             f"&destination={dest_lat},{dest_lng}"
         )
 
-        # 👉 CÂU TRẢ LỜI ĐÚNG Ý TƯỞNG BẠN MÔ TẢ
+        # CAU TRA LOI DUNG Y TUONG BAN MO TA
         response_text = f"""
 📍 **Đây là cửa hàng CellPhoneS gần bạn nhất mà em tìm được:**
 
@@ -174,7 +174,7 @@ def find_nearest_store(self, lat: float, lng: float):
         return response_text.strip()
 
     except Exception as e:
-        return f"⚠️ Lỗi khi kết nối Google Maps: {str(e)}"
+        return f"Loi khi ket noi Google Maps: {str(e)}"
     
 
 
@@ -200,7 +200,7 @@ def find_stores(self, location: str):
             results = data.get("local_results", [])
 
             if not results:
-                return f"❌ Không tìm thấy cửa hàng CellphoneS nào ở khu vực '{location}' ạ."
+                return f"Khong tim thay cua hang CellphoneS nao o khu vuc '{location}' a."
 
             # Lấy tối đa 3 cửa hàng để hiển thị cho gọn
             response_text = f"📍 **Danh sách cửa hàng tại {location}:**\n\n"
@@ -221,7 +221,7 @@ def find_stores(self, location: str):
             return response_text
 
         except Exception as e:
-            return f"⚠️ Lỗi tìm kiếm cửa hàng: {str(e)}"
+            return f"Loi tim kiem cua hang: {str(e)}"
 
 
 store_service = StoreService()

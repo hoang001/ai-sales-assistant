@@ -381,83 +381,44 @@ window.handleConsulting = function(productName, needCompare = false) {
     }
 };
 
-// Xử lý nút: Tìm cửa hàng gần nhất (GPS)
-window.handleFindStore = function() {
-    console.log('[DEBUG] handleFindStore called');
-    
+// --- XỬ LÝ NÚT TÌM CỬA HÀNG (UPDATED FOR GOOGLE MAPS API) ---
+window.handleFindStore = function () {
     if (!navigator.geolocation) {
-        addBotMessageHTML("⚠️ Trình duyệt của bạn không hỗ trợ định vị.");
+        addBotMessageHTML("⚠️ Trình duyệt không hỗ trợ định vị.");
         return;
     }
 
-    addBotMessageHTML('<div style="color:#666; font-style:italic; font-size:13px;">📍 Đang xác định vị trí... (Vui lòng chọn "Allow/Cho phép" nếu được hỏi)</div>');
+    addBotMessageHTML(
+      '<i style="color:#666;">📍 Đang xác định vị trí của bạn...</i>'
+    );
 
-    // Cấu hình định vị: Chờ tối đa 10 giây
     const options = {
         enableHighAccuracy: false,
-        timeout: 10000,
-        maximumAge: 0
+        timeout: 20000,
+        maximumAge: 60000
     };
 
     navigator.geolocation.getCurrentPosition(
-        async (position) => {
-            try {
-                console.log('[DEBUG] Geolocation success:', position.coords);
-                const lat = position.coords.latitude;
-                const lon = position.coords.longitude;
-                
-                // Gọi API chuyển đổi tọa độ -> Tên Quận (yêu cầu locale tiếng Việt)
-                console.log('[DEBUG] Calling nominatim API...');
-                const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=14&accept-language=vi`);
-                const data = await response.json();
-                console.log('[DEBUG] Nominatim response:', data);
-                
-                const addr = data.address || {};
-                // Ưu tiên lấy tên tiếng Việt từ các trường, fallback sang tiếng Anh nếu không có
-                let district = addr.city_district || addr.district || addr.suburb || addr.city || "";
-                
-                // Nếu vẫn là tiếng Anh (có "Ward", "District"), thử lấy từ display_name và parse
-                if (district && (district.includes("Ward") || district.includes("District"))) {
-                    // Thử parse từ display_name nếu có
-                    const displayName = data.display_name || "";
-                    // Tìm pattern "Quận ..." hoặc "Phường ..." trong display_name
-                    const quanMatch = displayName.match(/Quận\s+([^,]+)/);
-                    const phuongMatch = displayName.match(/Phường\s+([^,]+)/);
-                    if (quanMatch) {
-                        district = quanMatch[1].trim();
-                    } else if (phuongMatch) {
-                        district = phuongMatch[1].trim();
-                    } else {
-                        // Loại bỏ "Ward" và "District" từ tên
-                        district = district.replace(/\s*Ward\s*/gi, "").replace(/\s*District\s*/gi, "").trim();
-                    }
-                }
-                
-                if (district) {
-                    console.log('[DEBUG] Found district:', district);
-                    // FIX: Set input value THEN call sendMessage()
-                    if (messageInput) {
-                        messageInput.value = `Tìm cửa hàng gần ${district}`;
-                        setTimeout(() => sendMessage(), 50);
-                    }
-                } else {
-                    console.log('[DEBUG] No district found');
-                    addBotMessageHTML("⚠️ Không xác định được tên Quận. Bạn vui lòng nhập thủ công nhé.");
-                }
-            } catch (e) {
-                console.error('[DEBUG] Geolocation success callback error:', e);
-                addBotMessageHTML("⚠️ Lỗi kết nối bản đồ. Bạn vui lòng nhập thủ công: <b>'Tìm cửa hàng ở [Tên Quận]'</b>");
-            }
+        (pos) => {
+            const { latitude, longitude } = pos.coords;
+
+            addUserMessage("📍 Tìm cửa hàng CellPhoneS gần nhất");
+
+            sendMessage(JSON.stringify({
+                type: "location",
+                lat: latitude,
+                lng: longitude
+            }));
         },
-        (error) => {
-            console.error('[DEBUG] Geolocation error:', error);
+        (err) => {
             let msg = "Không thể lấy vị trí.";
-            if (error.code === 1) msg = "Bạn đã chặn quyền truy cập vị trí."; // PERMISSION_DENIED
-            else if (error.code === 2) msg = "Vị trí không khả dụng."; // POSITION_UNAVAILABLE
-            else if (error.code === 3) msg = "Hết thời gian chờ (Timeout)."; // TIMEOUT
-            
-            addBotMessageHTML(`⚠️ ${msg}<br>💡 Gợi ý: Hãy nhập trực tiếp <b>"Tìm cửa hàng ở [Tên Quận]"</b> để nhanh hơn.`);
+            if (err.code === 1) msg = "Bạn đã từ chối quyền truy cập vị trí.";
+            if (err.code === 2) msg = "Không xác định được vị trí.";
+            if (err.code === 3) msg = "Lấy vị trí quá lâu, vui lòng thử lại.";
+
+            addBotMessageHTML(`⚠️ ${msg}`);
         },
         options
     );
 };
+

@@ -4,7 +4,10 @@ import os
 from .database import db_manager
 from .config import settings
 import unicodedata
+import requests
 
+
+GOOGLE_API_KEY = getattr(settings, "GOOGLE_MAPS_API_KEY", None)
 # Import Search Engine
 try:
     from src.search_engine import StoreSearchEngine
@@ -115,137 +118,71 @@ class StoreService:
         nfkd_form = unicodedata.normalize('NFKD', input_str)
         return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
-    def find_stores(self, location: str):
-        """Tìm cửa hàng CellphoneS (Phiên bản chấp nhận không dấu và tìm kiếm linh hoạt)"""
-        import json
-        import os
-        import time
-        
-        try:
-            base_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            store_path = os.path.join(base_dir, 'data', 'raw', 'store.json')
-            with open(store_path, 'r', encoding='utf-8') as f:
-                all_stores = json.load(f)
-        except Exception as e:
-            print(f"❌ Lỗi đọc file store.json: {e}")
-            return "⚠️ Hệ thống đang bảo trì dữ liệu cửa hàng."
 
-        # 1. Chuẩn hóa từ khóa tìm kiếm (Xóa dấu, chữ thường, loại bỏ các từ chỉ địa danh hành chính)
-        # Ví dụ: "Phường Vinh Hưng" -> "vinh hung", "Quận Cầu Giấy" -> "cau giay"
-        loc_norm = self.remove_accents(location.lower())
-        # Loại bỏ các từ chỉ địa danh hành chính
-        loc_norm = loc_norm.replace("quan", "").replace("huyen", "").replace("thanh pho", "").replace("tp", "").replace("phuong", "").replace("xa", "").replace("ward", "").replace("district", "").strip()
-        # Xóa các ký tự đặc biệt và khoảng trắng thừa
-        loc_norm = " ".join(loc_norm.split())
-        
-        #region agent log
-        with open(r"d:\HOCTAP\KHMT\AI-Sales-Assistant\.cursor\debug.log", "a", encoding="utf-8") as _f:
-            _f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "post-fix",
-                "hypothesisId": "H1",
-                "location": "services.py:141",
-                "message": "find_stores entry",
-                "data": {"raw_location": location, "loc_norm": loc_norm},
-                "timestamp": int(time.time() * 1000)
-            }) + "\n")
-        #endregion
-        
-        if not loc_norm:
-            return f"Dạ em không hiểu địa điểm '{location}'. Anh/chị vui lòng nhập tên Quận/Huyện hoặc Phường/Xã cụ thể hơn ạ."
-        
-        found_stores = []
-        words = [w for w in loc_norm.split() if len(w) > 1]
-        #region agent log
-        with open(r"d:\HOCTAP\KHMT\AI-Sales-Assistant\.cursor\debug.log", "a", encoding="utf-8") as _f:
-            _f.write(json.dumps({
-                "sessionId": "debug-session",
-                "runId": "post-fix",
-                "hypothesisId": "H4",
-                "location": "services.py:159",
-                "message": "tokenized_location",
-                "data": {"loc_norm": loc_norm, "words": words, "word_count": len(words)},
-                "timestamp": int(time.time() * 1000)
-            }) + "\n")
-        #endregion
+def find_nearest_store(self, lat: float, lng: float):
+    """
+    Tìm cửa hàng CellPhoneS gần nhất dựa trên tọa độ GPS
+    Sử dụng SerpAPI (Google Maps engine)
+    """
 
-        # 2. So sánh thông minh (tìm kiếm trong cả address và city)
-        for store in all_stores:
-            # Chuẩn hóa địa chỉ trong DB (xóa dấu, chữ thường)
-            addr_norm = self.remove_accents(store.get('address', '').lower())
-            city_norm = self.remove_accents(store.get('city', '').lower())
-            name_norm = self.remove_accents(store.get('name', '').lower())
+    print(f"📍 Tìm CellPhoneS gần vị trí: {lat}, {lng}")
 
-            matched = False
-            match_reason = ""
+    params = {
+        "engine": "google_maps",
+        "q": "CellphoneS",
+        "ll": f"@{lat},{lng},14z",
+        "type": "search",
+        "api_key": settings.SERP_API_KEY,
+        "hl": "vi"
+    }
 
-            # Ưu tiên khớp cụm đầy đủ
-            if (loc_norm and (loc_norm in addr_norm or loc_norm in city_norm or loc_norm in name_norm)):
-                matched = True
-                match_reason = "full_loc_norm"
-            # Nếu có >=2 từ: yêu cầu TẤT CẢ từ phải xuất hiện trong CÙNG MỘT trường (address HOẶC city HOẶC name)
-            # QUAN TRỌNG: Dùng TẤT CẢ từ (không filter), để tránh mất từ ngắn như "my" trong "my dinh"
-            elif len(words) >= 2:
-                # Kiểm tra xem tất cả từ có xuất hiện trong cùng một trường không
-                if (all(word in addr_norm for word in words) or
-                    all(word in city_norm for word in words) or
-                    all(word in name_norm for word in words)):
-                    matched = True
-                    match_reason = "all_words_match_same_field"
-            # Nếu chỉ 1 từ: yêu cầu từ đủ dài (>3) và xuất hiện trong địa chỉ/tên/thành phố
-            elif len(words) == 1:
-                w = words[0]
-                if len(w) > 3 and (w in addr_norm or w in city_norm or w in name_norm):
-                    matched = True
-                    match_reason = "single_word"
+    try:
+        response = requests.get("https://serpapi.com/search.json", params=params, timeout=10)
+        data = response.json()
 
-            if matched:
-                found_stores.append(store)
-                #region agent log
-                if len(found_stores) <= 5:
-                    with open(r"d:\HOCTAP\KHMT\AI-Sales-Assistant\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                        _f.write(json.dumps({
-                            "sessionId": "debug-session",
-                            "runId": "post-fix",
-                            "hypothesisId": "H2",
-                            "location": "services.py:204",
-                            "message": "match_found",
-                            "data": {
-                                "loc_norm": loc_norm,
-                                "words": words,
-                                "word_count": len(words),
-                                "matched_store": store.get('name'),
-                                "store_address": store.get('address', '')[:60],
-                                "store_city": store.get('city', ''),
-                                "reason": match_reason,
-                                "addr_contains_all_words": all(word in addr_norm for word in words) if len(words) >= 2 else None,
-                                "city_contains_all_words": all(word in city_norm for word in words) if len(words) >= 2 else None
-                            },
-                            "timestamp": int(time.time() * 1000)
-                        }) + "\n")
-                #endregion
-        
-        if not found_stores:
-            #region agent log
-            with open(r"d:\HOCTAP\KHMT\AI-Sales-Assistant\.cursor\debug.log", "a", encoding="utf-8") as _f:
-                _f.write(json.dumps({
-                    "sessionId": "debug-session",
-                    "runId": "post-fix",
-                    "hypothesisId": "H3",
-                    "location": "services.py:237",
-                    "message": "no_store_found",
-                    "data": {"loc_norm": loc_norm, "words": words, "word_count": len(words)},
-                    "timestamp": int(time.time() * 1000)
-                }) + "\n")
-            #endregion
-            return f"Dạ em chưa tìm thấy chi nhánh ở khu vực '{location}'. Anh/chị thử nhập tên Quận/Huyện lớn hơn xem sao ạ? (Ví dụ: 'Cầu Giấy', 'Đống Đa', 'Quận 1')"
+        results = data.get("local_results", [])
+        if not results:
+            return "❌ Em không tìm thấy cửa hàng CellPhoneS nào gần vị trí của anh/chị."
 
-        display_stores = found_stores[:5]
-        response_text = f"🎉 Tìm thấy **{len(found_stores)}** cửa hàng gần **{location}**:\n\n"
-        
-        for s in display_stores:
-            response_text += f"🏠 **{s['name']}**\n- 📍 {s['address']}\n- 🗺️ [Xem bản đồ]({s['map_url']})\n---\n"
-            
-        return response_text
+        # 👉 CHỈ LẤY CỬA HÀNG GẦN NHẤT
+        store = results[0]
+
+        name = store.get("title")
+        address = store.get("address")
+        rating = store.get("rating", "N/A")
+        reviews = store.get("reviews", 0)
+        gps = store.get("gps_coordinates", {})
+
+        dest_lat = gps.get("latitude")
+        dest_lng = gps.get("longitude")
+
+        # Link Google Maps chỉ đường (chuẩn mobile & web)
+        map_url = (
+            "https://www.google.com/maps/dir/?api=1"
+            f"&destination={dest_lat},{dest_lng}"
+        )
+
+        # 👉 CÂU TRẢ LỜI ĐÚNG Ý TƯỞNG BẠN MÔ TẢ
+        response_text = f"""
+📍 **Đây là cửa hàng CellPhoneS gần bạn nhất mà em tìm được:**
+
+🏠 **{name}**  
+📍 {address}  
+⭐ {rating}/5 ({reviews} đánh giá)
+
+🗺️ **[Chỉ đường đến cửa hàng trên Google Maps]({map_url})**
+
+    Anh/chị chỉ cần bấm vào link trên, Google Maps sẽ tự động mở và chỉ đường cho mình ạ 👍
+    Anh/Chị có thể ghé qua để trải nghiệm sản phẩm thực tế và được nhân viên tư vấn chuyên sâu hơn nhé! 💡
+
+📦 **Lưu ý:** Nếu cửa hàng tạm hết hàng mẫu bạn thích, đừng lo lắng! Các bạn nhân viên sẽ hỗ trợ nhập hàng về cho bạn chỉ trong vòng **2-3 ngày** thôi ạ.
+"""
+
+
+        return response_text.strip()
+
+    except Exception as e:
+        return f"⚠️ Lỗi khi kết nối Google Maps: {str(e)}"
+
 
 store_service = StoreService()

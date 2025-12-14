@@ -39,8 +39,38 @@ class ChatInput(BaseModel):
 
 @app.post("/chat")
 async def chat(inp: ChatInput):
-    reply = agent_manager.get_response(inp.user_id, inp.message)
+    message = inp.message.strip()
+
+    # ===============================
+    # CASE 1: LOCATION từ Frontend
+    # ===============================
+    if message.startswith("{"):
+        try:
+            data = json.loads(message)
+
+            if data.get("type") == "location":
+                lat = data.get("lat")
+                lng = data.get("lng")
+
+                if lat is None or lng is None:
+                    return {
+                        "response": "⚠️ Không nhận được tọa độ hợp lệ từ trình duyệt."
+                    }
+
+                reply = store_service.find_nearest_store(lat, lng)
+                return {"response": reply}
+
+        except Exception as e:
+            return {
+                "response": "⚠️ Không thể xử lý dữ liệu vị trí của bạn."
+            }
+
+    # ===============================
+    # CASE 2: CHAT TEXT (logic cũ)
+    # ===============================
+    reply = agent_manager.get_response(inp.user_id, message)
     return {"response": reply}
+
 
 # --- 3. TRANG CHỦ (Trả về file HTML) ---
 @app.get("/")

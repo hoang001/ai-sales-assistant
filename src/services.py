@@ -25,16 +25,20 @@ class StoreService:
         Trả về định dạng Markdown bao gồm: Ảnh, Giá, Đánh giá, Thông số.
         """
         if not self.rag: return "Hệ thống tìm kiếm đang bảo trì."
-        
+
         # 1. Tìm kiếm Vector (Tìm theo ý hiểu)
         results = self.rag.search(query, k=limit)
+
+        # Debug log
+        print(f"DEBUG: RAG search completed for '{query}', results: {len(results) if results else 0}")
+
         if not results: return "Không tìm thấy sản phẩm nào phù hợp."
         
         conn = db_manager.get_connection()
         cursor = conn.cursor()
         
         response_text = ""
-        print(f"\n--- DEBUG TÌM ẢNH ({len(results)} kết quả) ---")
+        print(f"\n--- DEBUG TIM ANH ({len(results)} ket qua) ---")
         
         for doc in results:
             name = doc.metadata.get('name')
@@ -47,7 +51,7 @@ class StoreService:
             if row:
                 original_price, img_url, discount, rating, reviews, specs_text = row
                 
-                print(f"Tim thay SQL: {name} | Anh: {str(img_url)[:30]}...")
+                print(f"Tim thay SQL: {name[:50]} | Anh: {str(img_url)[:30]}...")
 
                 # 1. Xử lý URL ảnh an toàn
                 if img_url and len(str(img_url)) > 5:
@@ -90,6 +94,12 @@ class StoreService:
 - 📝 Mô tả: {doc.page_content[:150]}...
 ---
 """
+
+        # Debug log
+        print(f"DEBUG: Returning response for '{query}', length: {len(response_text)}")
+
+        return response_text.strip()
+
     def check_stock(self, product_name: str):
         """Kiểm tra tồn kho"""
         conn = db_manager.get_connection()

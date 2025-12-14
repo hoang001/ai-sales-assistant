@@ -47,7 +47,10 @@ class StoreSearchEngine:
     def detect_category(self, query: str):
         """Phát hiện xem khách muốn tìm loại sản phẩm nào"""
         q = query.lower()
-        if "laptop" in q or "máy tính" in q or "macbook" in q:
+        print(f"DEBUG: Detecting category for '{q}'")
+
+        if "laptop" in q or "máy tính" in q or "macbook" in q or "gaming" in q:
+            print(f"DEBUG: Category detected: Laptop for '{q}'")
             return "Laptop"
         if "điện thoại" in q or "iphone" in q or "samsung" in q or "smartphone" in q:
             return "Điện thoại" # Hoặc "Mobile" tùy data của bạn
@@ -55,6 +58,7 @@ class StoreSearchEngine:
             return "Tablet"
         if "đồng hồ" in q or "watch" in q:
             return "Đồng hồ thông minh"
+        print(f"DEBUG: No category detected for '{q}'")
         return None
 
     def search(self, query: str, k=5):
@@ -63,8 +67,10 @@ class StoreSearchEngine:
         # 1. Phân tích ý định (Giá + Danh mục)
         min_p, max_p = self.extract_price_intent(query)
         category = self.detect_category(query)
-        
-        print(f"🔍 Query: '{query}' | Target: {category} | Giá: {min_p}-{max_p}")
+
+        print(f"DEBUG: Starting search for '{query}', category: {category}")
+
+        print(f"Query: '{query}' | Target: {category} | Gia: {min_p}-{max_p}")
 
         # --- CHIẾN THUẬT 1: TÌM KIẾM CHÍNH XÁC (Ưu tiên số 1) ---
         conditions = []
@@ -76,14 +82,17 @@ class StoreSearchEngine:
         
         try:
             results = self.vector_db.similarity_search(query, k=k, filter=strict_filter)
-            
+
+            print(f"DEBUG: Strict search results: {len(results)} for '{query}'")
+
             # Nếu tìm thấy hàng đúng ý -> Trả về luôn
-            if results: 
-                print(f"   => ✅ Tìm thấy {len(results)} kết quả chính xác.")
+            if results:
+                print(f"   => SUCCESS: Tim thay {len(results)} ket qua chinh xac.")
                 return results
-                
+
         except Exception as e:
-            print(f"   => ⚠️ Lỗi search strict: {e}")
+            print(f"DEBUG: Strict search error for '{query}': {str(e)}")
+            print(f"   => WARNING: Loi search strict: {str(e)}")
 
         # --- CHIẾN THUẬT 2: NỚI LỎNG GIÁ (Nếu bước 1 không ra gì) ---
         # Chỉ giữ lại điều kiện Category (Loại bỏ điều kiện Giá)
@@ -97,13 +106,16 @@ class StoreSearchEngine:
         
         try:
             results = self.vector_db.similarity_search(query, k=k, filter=fallback_filter)
-            print(f"   => 🔄 Tìm thấy {len(results)} kết quả thay thế (Khác giá).")
-            
+            print(f"   => FALLBACK: Tim thay {len(results)} ket qua thay the.")
+
+            print(f"DEBUG: Fallback search results: {len(results)} for '{query}'")
+
             # Đánh dấu vào metadata để AI biết đây là hàng thay thế
             for doc in results:
                 doc.page_content += " [LƯU Ý: Sản phẩm này có giá khác mức khách yêu cầu, hãy tư vấn khéo léo]"
-                
+
             return results
         except Exception as e:
-            print(f"   => ❌ Lỗi search fallback: {e}")
+            print(f"DEBUG: Fallback search error for '{query}': {str(e)}")
+            print(f"   => ERROR: Loi search fallback: {str(e)}")
             return []

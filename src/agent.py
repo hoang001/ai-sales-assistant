@@ -41,7 +41,10 @@ class AgentManager:
             
             # Gửi tin nhắn
             chat = self.sessions[user_id]
+            print(f"DEBUG: Sending message to AI: '{message}'")
             response = chat.send_message(message)
+            print(f"DEBUG: AI response text length: {len(response.text)}")
+            print(f"DEBUG: AI response preview: {response.text[:200]}")
             return response.text
 
         except Exception as e:

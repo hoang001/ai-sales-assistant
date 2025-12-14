@@ -156,6 +156,10 @@ async function sendMessage(msgOverride = null) {
 
 
 function processBackendResponse(markdownText) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/772e6c34-8e9c-4956-87f2-19b17c23545b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:processBackendResponse',message:'Processing backend response',data:{response_length:markdownText.length,has_products:markdownText.includes('💰 Giá:')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
     // 1. CHUẨN HÓA DỮ LIỆU (QUAN TRỌNG)
     // Chuyển đổi tất cả các kiểu xuống dòng (\r\n, \r) thành \n chuẩn
     let html = markdownText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');

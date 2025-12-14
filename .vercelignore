@@ -1,0 +1,7 @@
+src/
+data/
+scripts/
+test_google_API/
+test_stores.py
+ARCHITECTURE.md
+requirements.txt

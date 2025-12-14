@@ -8,8 +8,8 @@ const API_URL = "https://faddiest-overcasuistical-mollie.ngrok-free.dev";
 
 // Helper function để proxy ảnh qua HTTPS (giải quyết Mixed Content)
 function getProxyImageUrl(originalUrl) {
-    if (!originalUrl || originalUrl.includes('via.placeholder.com')) {
-        return originalUrl; // Placeholder images không cần proxy
+    if (!originalUrl || originalUrl.startsWith('data:')) {
+        return originalUrl; // Data URLs và empty URLs không cần proxy
     }
     // Encode URL và tạo proxy URL
     const encodedUrl = encodeURIComponent(originalUrl);
@@ -196,7 +196,7 @@ function processBackendResponse(markdownText) {
             <div class="product-card-inline" style="display: flex; gap: 15px; margin: 15px 0; background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e0e0e0; align-items: start;">
                 
                 <div class="product-image-inline" style="flex-shrink: 0; width: 120px; height: 120px; border-radius: 8px; overflow: hidden; background: #fff; display: flex; align-items: center; justify-content: center; border: 1px solid #f0f0f0;">
-                    <img src="${getProxyImageUrl(productData.imgUrl)}" alt="${productData.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='https://via.placeholder.com/120x120?text=No+Image'">
+                    <img src="${getProxyImageUrl(productData.imgUrl)}" alt="${productData.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjRjNGNEY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
                 </div>
 
                 <div class="product-info-inline" style="flex: 1; display: flex; flex-direction: column; gap: 5px;">

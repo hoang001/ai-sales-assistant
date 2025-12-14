@@ -57,7 +57,7 @@ class StoreService:
                 if img_url and len(str(img_url)) > 5:
                     img_url = urllib.parse.quote(img_url, safe=":/?#[]@!$&'()*+,;=")
                 else:
-                    img_url = "https://via.placeholder.com/300x300?text=No+Image"
+                    img_url = "data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjRjNGNEY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=="
 
                 # 2. Xử lý dữ liệu hiển thị (Rating, Stars)
                 rating = rating if rating else 0

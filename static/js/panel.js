@@ -49,6 +49,9 @@ document.addEventListener('DOMContentLoaded', () => {
         return stars;
     }
 
+    // Product data for detailed view
+    const premiumProducts = {}; // Can be populated with detailed product data later
+
     // Show product details panel
     window.showProductDetails = function(productName) {
         const product = premiumProducts[productName] || getDefaultProduct(productName);
@@ -214,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
             price: 'Liên hệ để biết giá',
             rating: '4.5',
             reviews: '0',
-            image: 'https://images.unsplash.com/photo-1546054453-4f9b6c5e4b1a?ixlib=rb-4.0.3&auto=format&fit=crop&w=500&q=80',
+            image: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTAwIiBoZWlnaHQ9IjUwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjRjNGNEY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIyNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg==',
             badges: [
                 { type: 'warranty', text: 'Bảo hành 12 tháng', icon: 'fa-shield-alt' },
                 { type: 'shipping', text: 'Giao hàng toàn quốc', icon: 'fa-shipping-fast' }

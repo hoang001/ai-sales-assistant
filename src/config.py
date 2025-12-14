@@ -11,14 +11,12 @@ load_dotenv(BASE_DIR / ".env")
 class Config:
     # API Keys
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-    
+
+    SERPER_API_KEY = os.getenv("SERPER_API_KEY")
     # Paths
     DB_PATH = BASE_DIR / "store.db"
     RAW_DATA_PATH = BASE_DIR / "data" / "raw" / "products.json"
     VECTOR_DB_PATH = BASE_DIR / "data" / "vector_db"
-    
-    # Banking Info (Để tạo QR)
-    BANK_ID = "MB"  # Ngân hàng (MB, VCB, TECHCOMBANK...)
-    BANK_ACC = "0987654321" # Số tài khoản của bạn
+
 
 settings = Config()

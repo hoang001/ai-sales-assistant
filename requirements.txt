@@ -16,3 +16,8 @@ sentence-transformers
 # Data Processing
 beautifulsoup4
 lxml
+
+Flask
+python-dotenv
+google-generativeai
+requests

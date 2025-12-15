@@ -11,8 +11,8 @@ load_dotenv(BASE_DIR / ".env")
 class Config:
     # API Keys
     GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-
     SERPER_API_KEY = os.getenv("SERPER_API_KEY")
+    PLACES_API_KEY = os.getenv("PLACES_API_KEY")
     # Paths
     DB_PATH = BASE_DIR / "store.db"
     RAW_DATA_PATH = BASE_DIR / "data" / "raw" / "products.json"

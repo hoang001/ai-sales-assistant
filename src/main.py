@@ -55,8 +55,7 @@ async def chat(inp: ChatInput):
             _, coords = message.split(":")
             lat, lng = coords.split(",")
             
-            # Gọi hàm find_nearest_store trong services.py (Dùng SerpApi)
-            # Hàm này bạn đã có trong file services.py cũ
+            # Gọi hàm find_nearest_store sử dụng Google Places API (đã sửa)
             reply = store_service.find_nearest_store(float(lat), float(lng))
             
             return {"response": reply}

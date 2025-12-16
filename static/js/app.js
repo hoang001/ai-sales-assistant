@@ -6,10 +6,10 @@ let messageCount = 0;
 
 const API_URL = "https://faddiest-overcasuistical-mollie.ngrok-free.dev";
 
-// Helper function để proxy ảnh qua HTTPS (giải quyết Mixed Content)
+// Helper function to get image URL with proxy fallback
 function getProxyImageUrl(originalUrl) {
+    // If no URL provided, return a default placeholder
     if (!originalUrl) {
-        // Return a default placeholder image if no URL is provided
         return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMzAwIiBoZWlnaHQ9IjMwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjRjNGNEY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxOCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=';
     }
     
@@ -18,21 +18,20 @@ function getProxyImageUrl(originalUrl) {
         return originalUrl;
     }
     
-    // Ensure the URL is absolute
-    let imageUrl = originalUrl;
-    if (!imageUrl.startsWith('http')) {
-        if (imageUrl.startsWith('//')) {
-            imageUrl = 'https:' + imageUrl;
-        } else if (imageUrl.startsWith('/')) {
-            imageUrl = window.location.origin + imageUrl;
-        } else {
-            imageUrl = window.location.origin + '/' + imageUrl;
-        }
+    // If it's already an absolute URL, use it directly
+    if (originalUrl.startsWith('http')) {
+        return originalUrl;
     }
     
-    // Encode URL and create proxy URL
-    const encodedUrl = encodeURIComponent(imageUrl);
-    return `/proxy-image?url=${encodedUrl}`;
+    // For relative URLs, try to construct absolute URL
+    try {
+        // Try to create a URL object using the current page's origin
+        return new URL(originalUrl, window.location.origin).toString();
+    } catch (e) {
+        console.warn('Invalid image URL:', originalUrl);
+        // Fallback to the original URL (might not work for relative paths)
+        return originalUrl;
+    }
 }
 
 // 1. KHỞI TẠO
@@ -446,6 +445,7 @@ window.handleConsulting = function(productName, needCompare = false) {
 
 // --- XỬ LÝ NÚT TÌM CỬA HÀNG (UPDATED FOR GOOGLE MAPS API) ---
 window.handleFindStore = async function () {
+    // Check if geolocation is supported
     if (!navigator.geolocation) {
         addBotMessageHTML(`
             <div class="store-location-error">
@@ -459,6 +459,7 @@ window.handleFindStore = async function () {
         return;
     }
 
+    // Show loading message
     const loadingMsg = addBotMessageHTML(`
         <div class="store-location-loading">
             <div class="spinner"></div>
@@ -468,49 +469,51 @@ window.handleFindStore = async function () {
     `);
 
     try {
+        // Get current position
         const position = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(
-                resolve,
-                (error) => {
-                    console.error('Geolocation error:', error);
-                    reject(error);
-                },
-                {
-                    enableHighAccuracy: true,
-                    timeout: 10000,
-                    maximumAge: 0
-                }
-            );
+            navigator.geolocation.getCurrentPosition(resolve, reject, GEOLOCATION_OPTIONS);
         });
 
         const { latitude: lat, longitude: lng } = position.coords;
         
-        // Gửi tọa độ lên server
-        const response = await fetch(`${API_URL}/chat`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                message: `GPS:${lat},${lng}`,
-                user_id: localStorage.getItem("chat_session_id") || "guest"
-            })
-        });
+        // Show user that we're searching
+        loadingMsg.querySelector('p').textContent = '🔍 Đang tìm cửa hàng gần bạn...';
+        
+        // Send coordinates to server
+        try {
+            const response = await fetch(`${API_URL}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    message: `GPS:${lat},${lng}`,
+                    user_id: localStorage.getItem("chat_session_id") || "guest"
+                })
+            });
 
-        const data = await response.json();
-        
-        // Xóa thông báo loading
-        loadingMsg.remove();
-        
-        // Hiển thị kết quả
-        if (data.response) {
-            addBotMessageHTML(data.response);
-        } else {
-            throw new Error("Không nhận được phản hồi từ máy chủ");
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+
+            const data = await response.json();
+            
+            // Remove loading message
+            loadingMsg.remove();
+            
+            // Show results
+            if (data.response) {
+                addBotMessageHTML(data.response);
+            } else {
+                throw new Error("Không nhận được phản hồi từ máy chủ");
+            }
+        } catch (apiError) {
+            console.error('Lỗi khi gửi yêu cầu tìm cửa hàng:', apiError);
+            throw new Error("Không thể kết nối đến máy chủ. Vui lòng thử lại sau.");
         }
 
     } catch (error) {
         console.error('Lỗi tìm cửa hàng:', error);
         
-        // Xử lý lỗi cụ thể
+        // Handle specific errors
         let errorMessage = "Không thể xác định vị trí của bạn. ";
         
         if (error.code === error.PERMISSION_DENIED) {
@@ -519,11 +522,13 @@ window.handleFindStore = async function () {
             errorMessage = "Hết thời gian chờ xác định vị trí. ";
         } else if (error.code === error.POSITION_UNAVAILABLE) {
             errorMessage = "Không thể truy cập thông tin vị trí. ";
+        } else if (error.message) {
+            errorMessage = error.message;
         }
         
-        errorMessage += "Vui lòng thử lại hoặc nhập thủ công bên dưới:";
+        errorMessage += " Vui lòng thử lại hoặc nhập thủ công bên dưới:";
         
-        // Hiển thị giao diện nhập địa điểm thủ công
+        // Show manual location input
         const errorHtml = `
             <div class="store-location-error">
                 <p>⚠️ ${errorMessage}</p>
@@ -534,7 +539,7 @@ window.handleFindStore = async function () {
             </div>
         `;
         
-        // Nếu loadingMsg vẫn tồn tại thì thay thế, nếu không thì thêm mới
+        // Replace loading message with error or add new message
         if (loadingMsg && loadingMsg.parentNode) {
             loadingMsg.outerHTML = errorHtml;
         } else {
@@ -561,29 +566,21 @@ window.searchStoreByLocation = async function() {
     await sendMessage();
 };
 
-    const options = {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0
-    };
+// Geolocation options (moved to the top of the file for better organization)
+const GEOLOCATION_OPTIONS = {
+    enableHighAccuracy: true,
+    timeout: 10000,
+    maximumAge: 0
+};
 
-    navigator.geolocation.getCurrentPosition(
-        (pos) => {
-            const lat = pos.coords.latitude;
-            const lon = pos.coords.longitude;
-
-            // UI: Báo cho người dùng biết đã gửi
-            addUserMessage("📍 Đã gửi vị trí hiện tại.");
-
-            // Gửi tọa độ về Backend theo đúng format "GPS:..."
-            sendMessage(`GPS:${lat},${lon}`);
-        },
-        (err) => {
-            let msg = "Không thể lấy vị trí.";
-            if (err.code === 1) msg = "Bạn đã từ chối quyền vị trí.";
-            addBotMessageHTML(`⚠️ ${msg} Vui lòng nhập: <b>"Tìm cửa hàng ở [Tên Quận]"</b>`);
-        },
-        options
-    );
-
-
+// This function is called when the page loads to check if we should automatically find stores
+document.addEventListener('DOMContentLoaded', () => {
+    // Check if we should automatically find stores (e.g., from a button click)
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('findStores') === 'true') {
+        // Small delay to ensure everything is loaded
+        setTimeout(() => {
+            handleFindStore();
+        }, 1000);
+    }
+});

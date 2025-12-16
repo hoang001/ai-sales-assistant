@@ -5,6 +5,7 @@ from .database import db_manager
 from .config import settings
 import unicodedata
 import requests
+import math
 
 
 GOOGLE_API_KEY = getattr(settings, "GOOGLE_MAPS_API_KEY", None)
@@ -120,112 +121,166 @@ class StoreService:
         nfkd_form = unicodedata.normalize('NFKD', input_str)
         return "".join([c for c in nfkd_form if not unicodedata.combining(c)])
 
-    def find_nearest_store(self, lat: float, lng: float):
-        """
-        Tìm cửa hàng gần nhất dùng Google Places API (v1).
-        Trả về: Địa chỉ, toạ độ, điện thoại, website, giờ hoạt động, rating, review, tiện ích.
-        """
-        api_key = getattr(settings, "PLACES_API_KEY", None)
-        if not api_key:
-            return "Chưa cấu hình PLACES_API_KEY!"
+
+    # ===============================
+    # HÀM TÍNH KHOẢNG CÁCH (KM)
+    # ===============================
+    def haversine(lat1, lng1, lat2, lng2):
+        R = 6371  # km
+        phi1 = math.radians(lat1)
+        phi2 = math.radians(lat2)
+        dphi = math.radians(lat2 - lat1)
+        dlambda = math.radians(lng2 - lng1)
+
+        a = (
+            math.sin(dphi / 2) ** 2
+            + math.cos(phi1)
+            * math.cos(phi2)
+            * math.sin(dlambda / 2) ** 2
+        )
+        return 2 * R * math.atan2(math.sqrt(a), math.sqrt(1 - a))
+
         
-        url = "https://places.googleapis.com/v1/places:searchText"
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Goog-Api-Key': api_key,
-            'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,'
-                             'places.location,places.rating,places.userRatingCount,'
-                             'places.websiteUri,places.regularOpeningHours,places.types,'
-                             'places.internationalPhoneNumber,places.reviews,places.accessibilityOptions'
-        }
-        
-        payload = {
-            "textQuery": "CellphoneS",
-            "languageCode": "vi",
-            "locationBias": {
-                "rectangle": {
-                    "low": {
-                        "latitude": lat - 0.01,  # Khoảng 1km
-                        "longitude": lng - 0.01
-                    },
-                    "high": {
-                        "latitude": lat + 0.01,
-                        "longitude": lng + 0.01
-                    }
-                }
+def find_nearest_store(self, lat: float, lng: float):
+
+
+    #"Tìm cửa hàng CellphoneS gần nhất bằng Google Places API (v1)"
+    api_key = getattr(settings, "PLACES_API_KEY", None)
+    if not api_key:
+        return "Chưa cấu hình PLACES_API_KEY!"
+
+    url = "https://places.googleapis.com/v1/places:searchText"
+
+    headers = {
+        "Content-Type": "application/json",
+        "X-Goog-Api-Key": api_key,
+        "X-Goog-FieldMask": (
+            "places.id,"
+            "places.displayName,"
+            "places.formattedAddress,"
+            "places.location,"
+            "places.rating,"
+            "places.userRatingCount,"
+            "places.websiteUri,"
+            "places.regularOpeningHours,"
+            "places.types,"
+            "places.internationalPhoneNumber,"
+            "places.reviews,"
+            "places.accessibilityOptions"
+        ),
+    }
+
+    payload = {
+        "textQuery": "CellphoneS",
+        "languageCode": "vi",
+        "locationBias": {
+            "rectangle": {
+                "low": {"latitude": lat - 0.05, "longitude": lng - 0.05},
+                "high": {"latitude": lat + 0.05, "longitude": lng + 0.05},
             }
-        }
-        
-        try:
-            # Gọi API tìm kiếm
-            resp = requests.post(url, headers=headers, json=payload, timeout=10)
-            resp.raise_for_status()
-            data = resp.json()
-            
-            if not data.get("places"):
-                return "Không tìm thấy cửa hàng gần bạn."
-                
-            # Lấy cửa hàng gần nhất
-            shop = data["places"][0]
-            
-            # Trích xuất thông tin
-            name = shop.get("displayName", {}).get("text", "N/A")
-            address = shop.get("formattedAddress", "N/A")
-            location = shop.get("location", {})
-            lat_ = location.get("latitude")
-            lng_ = location.get("longitude")
-            rating = shop.get("rating", "?")
-            user_ratings_total = shop.get("userRatingCount", 0)
-            phone = shop.get("internationalPhoneNumber", "N/A")
-            website = shop.get("websiteUri", "N/A")
-            
-            # Xử lý giờ mở cửa
-            opening_hours = []
-            if "regularOpeningHours" in shop:
-                for day in shop["regularOpeningHours"].get("weekdayDescriptions", []):
-                    opening_hours.append(day)
-            
-            # Xử lý đánh giá
-            reviews = shop.get("reviews", [])
-            review_texts = "".join(
-                [f"- {r.get('authorAttribution', {}).get('displayName', 'Ẩn danh')}: "
-                 f"'{r.get('originalText', {}).get('text', '')[:100]}...'\n" 
-                 for r in reviews[:3]]
-            ) if reviews else "Chưa có đánh giá nổi bật."
-            
-            # Xử lý tiện ích
-            amenities = []
-            if shop.get("accessibilityOptions", {}).get("wheelchairAccessibleParking"):
-                amenities.append("Có lối cho xe lăn")
-            if "parking" in str(shop.get("types", [])).lower():
-                amenities.append("Có bãi đỗ xe")
-            if "wifi" in str(shop.get("types", [])).lower():
-                amenities.append("Có Wi-Fi")
-                
-            # Tạo link Google Maps
-            map_link = f"https://www.google.com/maps/search/?api=1&query={lat_},{lng_}"
-            
-            # Tạo kết quả
-            result = f"""
+        },
+    }
+
+    try:
+        resp = requests.post(url, headers=headers, json=payload, timeout=10)
+        resp.raise_for_status()
+        data = resp.json()
+
+        places = data.get("places", [])
+        if not places:
+            return "Không tìm thấy cửa hàng CellphoneS gần bạn."
+
+        # ===============================
+        # LỌC + TÍNH KHOẢNG CÁCH
+        # ===============================
+        filtered = []
+        for p in places:
+            name = p.get("displayName", {}).get("text", "").lower()
+            if "cellphones" in name:
+                loc = p.get("location", {})
+                if "latitude" in loc and "longitude" in loc:
+                    p["_distance"] = haversine(
+                        lat, lng, loc["latitude"], loc["longitude"]
+                    )
+                    filtered.append(p)
+
+        if not filtered:
+            return "Không tìm thấy cửa hàng CellphoneS phù hợp gần bạn."
+
+        shop = min(filtered, key=lambda x: x["_distance"])
+
+        # ===============================
+        # TRÍCH XUẤT THÔNG TIN
+        # ===============================
+        name = shop.get("displayName", {}).get("text", "N/A")
+        address = shop.get("formattedAddress", "N/A")
+
+        location = shop.get("location", {})
+        lat_ = location.get("latitude")
+        lng_ = location.get("longitude")
+
+        rating = shop.get("rating", "?")
+        user_ratings_total = shop.get("userRatingCount", 0)
+        phone = shop.get("internationalPhoneNumber", "N/A")
+        website = shop.get("websiteUri", "N/A")
+
+        opening_hours = []
+        if "regularOpeningHours" in shop:
+            opening_hours = shop["regularOpeningHours"].get(
+                "weekdayDescriptions", []
+            )
+
+        reviews = shop.get("reviews", [])
+        if reviews:
+            review_texts = "\n".join(
+                [
+                    "- {}: {}...".format(
+                        r.get("authorAttribution", {}).get(
+                            "displayName", "Ẩn danh"
+                        ),
+                        r.get("originalText", {}).get("text", "")[:100],
+                    )
+                    for r in reviews[:3]
+                ]
+            )
+        else:
+            review_texts = "Chưa có đánh giá nổi bật."
+
+        amenities = []
+        if shop.get("accessibilityOptions", {}).get(
+            "wheelchairAccessibleParking"
+        ):
+            amenities.append("Có lối cho xe lăn")
+        if "parking" in str(shop.get("types", [])).lower():
+            amenities.append("Có bãi đỗ xe")
+        if "wifi" in str(shop.get("types", [])).lower():
+            amenities.append("Có Wi-Fi")
+
+        map_link = (
+            f"https://www.google.com/maps/search/?api=1&query={lat_},{lng_}"
+        )
+
+        result = f"""
 🏠 **{name}**
-- Địa chỉ: {address}
-- Toạ độ: ({lat_}, {lng_})
-- Điện thoại: {phone}
-- Website: {website}
-- ★ Điểm đánh giá: {rating}/5 (Tổng: {user_ratings_total} đánh giá)
-- Giờ mở cửa:
-{chr(10).join(opening_hours) if opening_hours else 'Chưa có thông tin.'}
-- Tiện ích: {', '.join(amenities) if amenities else 'Đang cập nhật.'}
-- Đánh giá người dùng nổi bật:
+- 📍 Địa chỉ: {address}
+- 📐 Khoảng cách: {shop["_distance"]:.2f} km
+- ☎️ Điện thoại: {phone}
+- 🌐 Website: {website}
+- ⭐ Đánh giá: {rating}/5 ({user_ratings_total} lượt)
+- 🕒 Giờ mở cửa:
+{chr(10).join(opening_hours) if opening_hours else "Chưa có thông tin"}
+- 🛠 Tiện ích: {", ".join(amenities) if amenities else "Đang cập nhật"}
+- 💬 Đánh giá nổi bật:
 {review_texts}
-- 📍 [Xem trên Google Maps]({map_link})
+- 🗺 [Xem trên Google Maps]({map_link})
 """
-            return result.strip()
-            
-        except requests.exceptions.RequestException as e:
-            return f"Lỗi kết nối đến Google Places API: {str(e)}"
-        except Exception as e:
-            return f"Lỗi khi lấy thông tin cửa hàng: {str(e)}"
+
+        return result.strip()
+
+    except requests.exceptions.RequestException as e:
+        return f"Lỗi kết nối đến Google Places API: {str(e)}"
+    except Exception as e:
+        return f"Lỗi khi xử lý dữ liệu cửa hàng: {str(e)}"
 
 
 

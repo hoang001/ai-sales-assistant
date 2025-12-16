@@ -15,8 +15,8 @@ def find_store_tool(location: str):
     """
     Tìm cửa hàng CellphoneS gần nhất.
 
-    - Nếu input dạng GPS:lat,lng → dùng Google Places → HTML card
-    - Nếu input là chữ (Quận/Huyện/Phường) → dùng SerpAPI → text
+    - GPS → dùng trực tiếp
+    - Text → Geocode → Places
     """
 
     # ==========================
@@ -29,7 +29,6 @@ def find_store_tool(location: str):
             lat = float(lat_str.strip())
             lng = float(lng_str.strip())
 
-            # GỌI ĐÚNG HÀM HTML CARD
             return store_service.find_nearest_store(lat, lng)
 
         except Exception as e:
@@ -38,7 +37,13 @@ def find_store_tool(location: str):
     # ==========================
     # TRƯỜNG HỢP TEXT
     # ==========================
-    return store_service.find_stores(location)
+    try:
+        lat, lng = store_service.geocode_location(location)
+        return store_service.find_nearest_store(lat, lng)
+
+    except Exception as e:
+        return f"<div class='error-message'>❌ Lỗi tìm địa điểm: {e}</div>"
+
 
 
 defined_tools = [

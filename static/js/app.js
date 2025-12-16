@@ -150,7 +150,6 @@ async function sendMessage(msgOverride = null) {
                 'Content-Type': 'application/json',
                 'ngrok-skip-browser-warning': 'true'  // Thêm header này để tránh cảnh báo từ ngrok
             },
-            credentials: 'include',  // Thêm dòng này
             body: JSON.stringify({
                 message: text,  // Sử dụng biến text từ input
                 user_id: userId  // Sử dụng biến userId đã có
@@ -177,9 +176,6 @@ async function sendMessage(msgOverride = null) {
 
 
 function processBackendResponse(markdownText) {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/772e6c34-8e9c-4956-87f2-19b17c23545b',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'app.js:processBackendResponse',message:'Processing backend response',data:{response_length:markdownText.length,has_products:markdownText.includes('💰 Giá:')},timestamp:Date.now(),sessionId:'debug-session',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     // 1. CHUẨN HÓA DỮ LIỆU (QUAN TRỌNG)
     // Chuyển đổi tất cả các kiểu xuống dòng (\r\n, \r) thành \n chuẩn
@@ -517,7 +513,6 @@ window.handleFindStore = async function () {
                 'Content-Type': 'application/json',
                 'ngrok-skip-browser-warning': 'true'
             },
-            credentials: 'include',
             body: JSON.stringify({
                 message: `GPS:${lat},${lng}`,
                 user_id: localStorage.getItem("chat_session_id") || "guest"
@@ -568,6 +563,7 @@ window.handleFindStore = async function () {
 
 
 // Hàm tìm kiếm cửa hàng theo địa điểm nhập tay
+// Hàm tìm kiếm cửa hàng theo địa chỉ nhập tay
 window.searchStoreByLocation = async function() {
     const locationInput = document.getElementById('manualLocation');
     if (!locationInput || !locationInput.value.trim()) {
@@ -576,13 +572,44 @@ window.searchStoreByLocation = async function() {
     }
     
     const location = locationInput.value.trim();
-    const message = `Tìm cửa hàng ở ${location}`;
     
     // Thêm tin nhắn người dùng
-    addUserMessage(message);
+    addUserMessage(`Tìm cửa hàng ở ${location}`);
     
-    // Gửi tin nhắn
-    await sendMessage();
+    try {
+        const userId = localStorage.getItem("chat_session_id");
+        showTypingIndicator();
+        setLoadingState(true);
+        
+        // Gọi API tìm kiếm cửa hàng
+        const response = await fetch(`${API_URL}/chat`, {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true'
+            },
+            body: JSON.stringify({
+                message: `Tìm cửa hàng ở ${location}`,
+                user_id: userId
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP Error: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        addBotMessageHTML(data.response || "Không tìm thấy cửa hàng nào phù hợp.");
+        
+    } catch (error) {
+        console.error("Search Error:", error);
+        addBotMessageHTML("⚠️ <strong>Lỗi tìm kiếm:</strong> Không thể tìm cửa hàng lúc này. Vui lòng thử lại sau.");
+    } finally {
+        hideTypingIndicator();
+        setLoadingState(false);
+        // Xóa nội dung input sau khi gửi
+        if (locationInput) locationInput.value = '';
+    }
 };
 
 // This function is called when the page loads to check if we should automatically find stores

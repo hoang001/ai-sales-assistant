@@ -144,9 +144,9 @@ class StoreService:
         import math
         import requests
 
-        api_key = getattr(settings, "PLACES_API_KEY", None)
+        api_key = getattr(settings, "GOOGLE_MAPS_API_KEY", None)
         if not api_key:
-            return "<b>⚠️ Chưa cấu hình PLACES_API_KEY</b>"
+            return "<b>⚠️ Chưa cấu hình GOOGLE_MAPS_API_KEY</b>"
 
         # -----------------------
         # Hàm tính khoảng cách
@@ -282,49 +282,67 @@ class StoreService:
 
 
 
-    def find_stores(self, location: str):
-            """
-            Tìm cửa hàng theo tên địa điểm (Quận/Huyện)
-            """
-            print(f"📍 Đang tìm cửa hàng tại: {location}")
-            
-            # Dùng lại cấu hình của SerpAPI nhưng thay đổi tham số tìm kiếm
-            params = {
-                "engine": "google_maps",
-                "q": f"CellphoneS {location}", # Tìm "CellphoneS + Cầu Giấy"
-                "type": "search",
-                "api_key": settings.SERP_API_KEY,
-                "hl": "vi"
-            }
+def geocode_location(self, location: str):
+    """
+    Geocode địa điểm tiếng Việt (VD: 'Mỹ Đình', 'sân vận động Mỹ Đình')
+    bằng Google Geocoding API, có context Hà Nội – Việt Nam
+    """
+    api_key = settings.GOOGLE_MAPS_API_KEY
+    if not api_key:
+        raise Exception("Chưa cấu hình GOOGLE_MAPS_API_KEY")
 
-            try:
-                response = requests.get("https://serpapi.com/search.json", params=params, timeout=10)
-                data = response.json()
-                results = data.get("local_results", [])
+    # ==========================
+    # CHUẨN HÓA QUERY
+    # ==========================
+    query = location.strip().lower()
 
-                if not results:
-                    return f"Khong tim thay cua hang CellphoneS nao o khu vuc '{location}' a."
+    # Fix typo phổ biến
+    query = query.replace("đinhg", "đình")
 
-                # Lấy tối đa 3 cửa hàng để hiển thị cho gọn
-                response_text = f"📍 **Danh sách cửa hàng tại {location}:**\n\n"
-                
-                for store in results[:3]:
-                    name = store.get("title")
-                    address = store.get("address")
-                    rating = store.get("rating", "4.5")
-                    
-                    # Tạo link Google Maps
-                    gps = store.get("gps_coordinates", {})
-                    lat = gps.get("latitude")
-                    lng = gps.get("longitude")
-                    map_url = f"http://maps.google.com/?q={lat},{lng}"
+    # Nếu chưa có Hà Nội / Việt Nam → thêm context
+    if "hà nội" not in query:
+        query = f"{query}, Hà Nội"
+    if "việt nam" not in query:
+        query = f"{query}, Việt Nam"
 
-                    response_text += f"🏠 **{name}**\n- 📍 {address}\n- ⭐ {rating}/5\n- 🗺️ [Xem bản đồ]({map_url})\n\n"
-                
-                return response_text
+    url = "https://maps.googleapis.com/maps/api/geocode/json"
+    params = {
+        "address": query,
+        "key": api_key,
+        "language": "vi",
+        "region": "vn"
+    }
 
-            except Exception as e:
-                return f"Loi tim kiem cua hang: {str(e)}"
+    response = requests.get(url, params=params, timeout=10)
+    data = response.json()
+
+    if data.get("status") != "OK" or not data.get("results"):
+        raise Exception(f"Không geocode được địa điểm: {location}")
+
+    # ==========================
+    # ƯU TIÊN KẾT QUẢ PHÙ HỢP
+    # ==========================
+    PRIORITY_TYPES = {
+        "stadium",
+        "neighborhood",
+        "sublocality",
+        "sublocality_level_1",
+        "political"
+    }
+
+    for result in data["results"]:
+        types = set(result.get("types", []))
+        if types & PRIORITY_TYPES:
+            loc = result["geometry"]["location"]
+            return loc["lat"], loc["lng"]
+
+    # ==========================
+    # FALLBACK: LẤY KẾT QUẢ ĐẦU
+    # ==========================
+    loc = data["results"][0]["geometry"]["location"]
+    return loc["lat"], loc["lng"]
+
+
 
 
 store_service = StoreService()

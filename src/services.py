@@ -37,7 +37,7 @@ class StoreService:
         conn = db_manager.get_connection()
         cursor = conn.cursor()
         
-        response_text = ""
+        response_text = "Dạ, em tìm thấy **{len(results)} sản phẩm** phù hợp với nhu cầu của bạn đây ạ:\n\n"
         print(f"\n--- DEBUG TIM ANH ({len(results)} ket qua) ---")
         
         for doc in results:
@@ -282,67 +282,99 @@ class StoreService:
 
 
 
-def geocode_location(self, location: str):
-    """
-    Geocode địa điểm tiếng Việt (VD: 'Mỹ Đình', 'sân vận động Mỹ Đình')
-    bằng Google Geocoding API, có context Hà Nội – Việt Nam
-    """
-    api_key = settings.GOOGLE_MAPS_API_KEY
-    if not api_key:
-        raise Exception("Chưa cấu hình GOOGLE_MAPS_API_KEY")
+    def geocode_location(self, location: str):
+        """
+        Geocode địa điểm tiếng Việt (VD: 'Mỹ Đình', 'sân vận động Mỹ Đình')
+        bằng Google Geocoding API, có context Hà Nội – Việt Nam
+        """
+        api_key = settings.GOOGLE_MAPS_API_KEY
+        if not api_key:
+            raise Exception("Chưa cấu hình GOOGLE_MAPS_API_KEY")
 
-    # ==========================
-    # CHUẨN HÓA QUERY
-    # ==========================
-    query = location.strip().lower()
+        # ==========================
+        # CHUẨN HÓA QUERY
+        # ==========================
+        query = location.strip().lower()
 
-    # Fix typo phổ biến
-    query = query.replace("đinhg", "đình")
+        # Fix typo phổ biến
+        query = query.replace("đinhg", "đình")
 
-    # Nếu chưa có Hà Nội / Việt Nam → thêm context
-    if "hà nội" not in query:
-        query = f"{query}, Hà Nội"
-    if "việt nam" not in query:
-        query = f"{query}, Việt Nam"
+        # Nếu chưa có Hà Nội / Việt Nam → thêm context
+        if "hà nội" not in query:
+            query = f"{query}, Hà Nội"
+        if "việt nam" not in query:
+            query = f"{query}, Việt Nam"
 
-    url = "https://maps.googleapis.com/maps/api/geocode/json"
-    params = {
-        "address": query,
-        "key": api_key,
-        "language": "vi",
-        "region": "vn"
-    }
+        url = "https://maps.googleapis.com/maps/api/geocode/json"
+        params = {
+            "address": query,
+            "key": api_key,
+            "language": "vi",
+            "region": "vn"
+        }
 
-    response = requests.get(url, params=params, timeout=10)
-    data = response.json()
+        response = requests.get(url, params=params, timeout=10)
+        data = response.json()
 
-    if data.get("status") != "OK" or not data.get("results"):
-        raise Exception(f"Không geocode được địa điểm: {location}")
+        if data.get("status") != "OK" or not data.get("results"):
+            raise Exception(f"Không geocode được địa điểm: {location}")
 
-    # ==========================
-    # ƯU TIÊN KẾT QUẢ PHÙ HỢP
-    # ==========================
-    PRIORITY_TYPES = {
-        "stadium",
-        "neighborhood",
-        "sublocality",
-        "sublocality_level_1",
-        "political"
-    }
+        # ==========================
+        # ƯU TIÊN KẾT QUẢ PHÙ HỢP
+        # ==========================
+        PRIORITY_TYPES = {
+            "stadium",
+            "neighborhood",
+            "sublocality",
+            "sublocality_level_1",
+            "political"
+        }
 
-    for result in data["results"]:
-        types = set(result.get("types", []))
-        if types & PRIORITY_TYPES:
-            loc = result["geometry"]["location"]
-            return loc["lat"], loc["lng"]
+        for result in data["results"]:
+            types = set(result.get("types", []))
+            if types & PRIORITY_TYPES:
+                loc = result["geometry"]["location"]
+                return loc["lat"], loc["lng"]
 
-    # ==========================
-    # FALLBACK: LẤY KẾT QUẢ ĐẦU
-    # ==========================
-    loc = data["results"][0]["geometry"]["location"]
-    return loc["lat"], loc["lng"]
+        # ==========================
+        # FALLBACK: LẤY KẾT QUẢ ĐẦU
+        # ==========================
+        loc = data["results"][0]["geometry"]["location"]
+        return loc["lat"], loc["lng"]
 
 
 
+
+    # Export hàm geocode để test
+    geocode_location = geocode_location
+
+    # ==================================================
+    # 4. HÀM TỔNG HỢP: TÌM CỬA HÀNG THEO TÊN (Text -> HTML)
+    # ==================================================
+    def find_stores_by_text(self, input_text: str):
+        print(f"📍 Đang xử lý tìm kiếm địa điểm: {input_text}")
+        
+        # 1. Làm sạch từ khóa (Loại bỏ các từ thừa)
+        # Ví dụ: "tìm cửa hàng gần phú diễn" -> "phú diễn"
+        remove_words = ["tìm", "kiếm", "cửa", "hàng", "tại", "ở", "gần", "khu", "vực", "cellphones", "cho", "tôi"]
+        query = input_text.lower()
+        for word in remove_words:
+            query = query.replace(word, "")
+        
+        query = query.strip()
+        if not query:
+            return "Bạn muốn tìm cửa hàng ở đâu? Vui lòng ghi rõ địa điểm (Ví dụ: Cầu Giấy, Quận 1...)"
+
+        try:
+            # 2. Bước 1: Geocoding (Chữ -> Số)
+            lat, lng = self.geocode_location(query)
+            print(f"   -> Tọa độ tìm được: {lat}, {lng}")
+
+            # 3. Bước 2: Tìm cửa hàng (Số -> HTML)
+            return self.find_nearest_store(lat, lng)
+
+        except Exception as e:
+            print(f"❌ Lỗi tìm kiếm text: {e}")
+            return f"Xin lỗi, tôi không xác định được địa điểm '**{query}**'. Bạn hãy thử ghi rõ hơn (Ví dụ: *Phú Diễn, Bắc Từ Liêm*)."
 
 store_service = StoreService()

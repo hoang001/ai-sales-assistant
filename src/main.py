@@ -37,7 +37,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # ===============================
 # SCHEMA
 # ===============================
@@ -72,6 +71,54 @@ async def chat(inp: ChatInput):
     except Exception as e:
         print(f"[AI ERROR] {e}")
         return {"response": "Hệ thống đang bận, vui lòng thử lại sau."}
+
+
+@app.post("/chat")
+async def chat(inp: ChatInput):
+    message = inp.message.strip()
+    user_id = inp.user_id
+
+    print(f"[CHAT] {user_id}: {message}")
+
+    # ==========================================
+    # 1. ƯU TIÊN: XỬ LÝ GPS (Nút bấm)
+    # ==========================================
+    if message.startswith("GPS:"):
+        try:
+            _, coords = message.split(":")
+            lat, lng = coords.split(",")
+            reply = store_service.find_nearest_store(float(lat), float(lng))
+            return {"response": reply}
+        except Exception as e:
+            return {"response": "Lỗi xử lý định vị GPS."}
+
+    # ==========================================
+    # 2. ƯU TIÊN: XỬ LÝ TÌM ĐỊA ĐIỂM (Nhập tay)
+    # ==========================================
+    # Danh sách từ khóa kích hoạt chế độ tìm map
+    location_keywords = [
+        "tìm cửa hàng", "cửa hàng gần", "shop gần", "chi nhánh", 
+        "địa chỉ cửa hàng", "ở đâu", "gần đây không"
+    ]
+    
+    # Kiểm tra xem câu chat có chứa từ khóa không
+    if any(keyword in message.lower() for keyword in location_keywords):
+        # Gọi thẳng hàm tìm kiếm địa điểm, KHÔNG QUA AI
+        reply = store_service.find_stores_by_text(message)
+        return {"response": reply}
+
+    # ==========================================
+    # 3. CÒN LẠI: CHAT VỚI AI (Tư vấn sản phẩm)
+    # ==========================================
+    try:
+        reply = agent_manager.get_response(user_id, message)
+        return {"response": reply}
+
+    except Exception as e:
+        print(f"[AI ERROR] {e}")
+        return {
+            "response": "Hệ thống đang bận, vui lòng thử lại sau."
+        }
 
 # ===============================
 # PROXY IMAGE

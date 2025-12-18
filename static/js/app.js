@@ -175,25 +175,36 @@ async function sendMessage(msgOverride = null) {
 
 
 
-function processBackendResponse(markdownText) {
+// --- THAY THẾ HÀM processBackendResponse TRONG static/js/app.js ---
 
-    // 1. CHUẨN HÓA DỮ LIỆU (QUAN TRỌNG)
-    // Chuyển đổi tất cả các kiểu xuống dòng (\r\n, \r) thành \n chuẩn
+function processBackendResponse(markdownText) {
+    // 1. CHUẨN HÓA DỮ LIỆU
     let html = markdownText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
-    // 2. REGEX NÂNG CẤP (LINH HOẠT HƠN)
-    // - \s* : Chấp nhận mọi khoảng trắng hoặc xuống dòng thừa
-    // - (?:...)? : Nhóm không bắt buộc (để tránh lỗi nếu thiếu dòng "Thông số")
-    // - [\s\S]*? : Lấy nội dung mô tả kể cả khi có xuống dòng
-    const productBlockRegex = /\*\*(.*?)\*\*\s*\n\s*!\[(.*?)\]\((.*?)\)\s*\n\s*-\s*💰\s*Giá:\s*(.*?)\s*\n\s*-\s*⭐\s*Đánh giá:\s*(.*?)\s*\n(?:\s*-\s*⚙️\s*Thông số:\s*(.*?)\s*\n)?\s*-\s*📝\s*Mô tả:\s*([\s\S]*?)(?=(\n\s*---|[\s\S]*$))/g;
+    // 2. TÁCH PHẦN DẪN NHẬP VÀ PHẦN SẢN PHẨM
+    // Tìm vị trí bắt đầu của sản phẩm đầu tiên (bắt đầu bằng **Tên...)
+    const firstProductIndex = html.search(/\*\*(.*?)\*\*/);
+    
+    let introText = "";
+    let productsText = html;
+
+    if (firstProductIndex > 0) {
+        introText = html.substring(0, firstProductIndex); // Lấy phần text chào hỏi
+        productsText = html.substring(firstProductIndex); // Lấy phần danh sách sản phẩm
+    }
+
+    // 3. REGEX MỚI (FIX LỖI TRÀN TEXT)
+    // Logic: Lấy mô tả cho đến khi gặp dòng bắt đầu bằng "**" (sản phẩm tiếp theo) hoặc hết chuỗi ($)
+    const productBlockRegex = /\*\*(.*?)\*\*\s*\n\s*!\[(.*?)\]\((.*?)\)\s*\n\s*-\s*💰\s*Giá:\s*(.*?)\s*\n\s*-\s*⭐\s*Đánh giá:\s*(.*?)\s*\n(?:\s*-\s*⚙️\s*Thông số:\s*(.*?)\s*\n)?\s*-\s*📝\s*Mô tả:\s*([\s\S]*?)(?=\n\s*\*\*|$)/g;
 
     let hasProduct = false;
+    let productsHtml = "";
 
-    // 3. THAY THẾ MARKDOWN BẰNG HTML THẺ SẢN PHẨM
-    html = html.replace(productBlockRegex, (match, name, alt, imgUrl, price, ratingStr, specs, description) => {
+    // 4. RENDER SẢN PHẨM
+    productsHtml = productsText.replace(productBlockRegex, (match, name, alt, imgUrl, price, ratingStr, specs, description) => {
         hasProduct = true;
         
-        // Xử lý rating (Lấy số sao đầu tiên)
+        // Xử lý rating
         const rating = ratingStr ? ratingStr.split('/')[0].trim() : '4.5';
         
         // Tạo object dữ liệu
@@ -202,13 +213,12 @@ function processBackendResponse(markdownText) {
             imgUrl: imgUrl.trim(),
             price: price.trim(),
             rating: rating,
-            description: description.trim(),
-            specs: specs ? specs.trim() : "" // Nếu không có thông số thì để rỗng
+            description: description.replace(/---/g, '').trim(), // Xóa dấu gạch ngang nếu lỡ dính vào
+            specs: specs ? specs.trim() : ""
         };
         
         const encodedData = encodeURIComponent(JSON.stringify(productData));
 
-        // Render HTML (Card nằm ngang giống ảnh 2)
         return `
             <div class="product-card-inline" style="display: flex; gap: 15px; margin: 15px 0; background: #fff; padding: 12px; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); border: 1px solid #e0e0e0; align-items: start;">
                 
@@ -216,7 +226,7 @@ function processBackendResponse(markdownText) {
                     <img src="${getProxyImageUrl(productData.imgUrl)}" alt="${productData.name}" style="width: 100%; height: 100%; object-fit: contain;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIwIiBoZWlnaHQ9IjEyMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48cmVjdCB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIiBmaWxsPSIjRjNGNEY2Ii8+PHRleHQgeD0iNTAlIiB5PSI1MCUiIGZvbnQtZmFtaWx5PSJBcmlhbCwgc2Fucy1zZXJpZiIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzk5OSIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZHk9Ii4zZW0iPk5vIEltYWdlPC90ZXh0Pjwvc3ZnPg=='">
                 </div>
 
-                <div class="product-info-inline" style="flex: 1; display: flex; flex-direction: column; gap: 5px;">
+                <div class="product-info-inline" style="flex: 1; display: flex; flex-direction: column; gap: 5px; min-width: 0;">
                     <div style="font-size: 16px; font-weight: 700; color: #333; line-height: 1.3;">${productData.name}</div>
                     
                     <div style="font-size: 15px; font-weight: 700; color: #d70018;">${productData.price}</div>
@@ -244,17 +254,20 @@ function processBackendResponse(markdownText) {
         `;
     });
 
-    // 4. NẾU KHÔNG PHẢI SẢN PHẨM -> FORMAT TEXT THƯỜNG
-    if (!hasProduct) {
-        // In đậm, in nghiêng, xuống dòng
-        html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
-        html = html.replace(/\n/g, '<br>');
+    // 5. GHÉP LẠI VÀ HIỂN THỊ
+    let finalHtml = "";
+    
+    // Format phần dẫn nhập (in đậm, xuống dòng)
+    introText = formatText(introText);
+    
+    if (hasProduct) {
+        finalHtml = introText + productsHtml;
     } else {
-        // Xóa các dấu phân cách --- thừa
-        html = html.replace(/\n\s*---\s*\n/g, '');
+        // Nếu không có sản phẩm nào được detect (trường hợp chat thường), format toàn bộ
+        finalHtml = formatText(html);
     }
 
-    addBotMessageHTML(html);
+    addBotMessageHTML(finalHtml);
 }
 
 // Hàm format text cơ bản cho phần không phải sản phẩm

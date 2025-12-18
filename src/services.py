@@ -287,33 +287,24 @@ class StoreService:
 
     def geocode_location(self, location: str):
         """
-        Geocode địa điểm tiếng Việt (VD: 'Mỹ Đình', 'sân vận động Mỹ Đình')
-        bằng Google Geocoding API, có context Hà Nội – Việt Nam
+        Geocode địa điểm tiếng Việt (phường / quận / đường / số nhà)
+        bằng Google Geocoding API – ổn định cho Việt Nam
         """
         api_key = settings.GOOGLE_MAPS_API_KEY
         if not api_key:
             raise Exception("Chưa cấu hình GOOGLE_MAPS_API_KEY")
 
-        # ==========================
-        # CHUẨN HÓA QUERY
-        # ==========================
-        query = location.strip().lower()
-
-        # Fix typo phổ biến
-        query = query.replace("đinhg", "đình")
-
-        # Nếu chưa có Hà Nội / Việt Nam → thêm context
-        if "hà nội" not in query:
-            query = f"{query}, Hà Nội"
-        if "việt nam" not in query:
-            query = f"{query}, Việt Nam"
+        # ❗ KHÔNG lower-case – giữ nguyên tiếng Việt
+        query = location.strip()
 
         url = "https://maps.googleapis.com/maps/api/geocode/json"
         params = {
             "address": query,
             "key": api_key,
             "language": "vi",
-            "region": "vn"
+            "region": "vn",
+            # 🔑 QUAN TRỌNG: ép quốc gia
+            "components": "country:VN",
         }
 
         response = requests.get(url, params=params, timeout=10)
@@ -322,15 +313,14 @@ class StoreService:
         if data.get("status") != "OK" or not data.get("results"):
             raise Exception(f"Không geocode được địa điểm: {location}")
 
-        # ==========================
-        # ƯU TIÊN KẾT QUẢ PHÙ HỢP
-        # ==========================
+        # Ưu tiên cấp phường / quận
         PRIORITY_TYPES = {
-            "stadium",
             "neighborhood",
             "sublocality",
             "sublocality_level_1",
-            "political"
+            "administrative_area_level_2",
+            "administrative_area_level_3",
+            "political",
         }
 
         for result in data["results"]:
@@ -339,11 +329,10 @@ class StoreService:
                 loc = result["geometry"]["location"]
                 return loc["lat"], loc["lng"]
 
-        # ==========================
-        # FALLBACK: LẤY KẾT QUẢ ĐẦU
-        # ==========================
+        # Fallback
         loc = data["results"][0]["geometry"]["location"]
         return loc["lat"], loc["lng"]
+
 
 
 
@@ -373,34 +362,72 @@ class StoreService:
     def find_stores_by_text(self, input_text: str):
         print(f"📍 Đang xử lý tìm kiếm địa điểm: {input_text}")
 
-        # 1. DÙNG AI TRÍCH XUẤT ĐỊA CHỈ
         location = self.extract_location_by_ai(input_text)
 
         if not location:
             return (
                 "Bạn có thể cho tôi biết rõ khu vực bạn đang ở không?\n"
-                "Ví dụ: *Phú Diễn, Bắc Từ Liêm* hoặc *Cầu Giấy*"
+                "Ví dụ: *Phú Diễn, Bắc Từ Liêm*"
             )
 
-        # 2. CHUẨN HÓA ĐỊA LÝ (KHÔNG HARDCODE QUẬN)
-        normalized_location = location
-
-        if "việt nam" not in normalized_location.lower():
-            normalized_location = f"{normalized_location}, Hà Nội, Việt Nam"
-
+        normalized_location = location.strip()
         print(f"   -> Query geocode: {normalized_location}")
 
         try:
+            # 1️⃣ Thử Geocoding API trước
             lat, lng = self.geocode_location(normalized_location)
-            print(f"   -> Tọa độ: {lat}, {lng}")
-
+            print("   -> Geocode OK")
             return self.find_nearest_store(lat, lng)
 
-        except Exception as e:
-            print(f"❌ Lỗi tìm kiếm text: {e}")
-            return (
-                f"Tôi chưa xác định được chính xác vị trí **{location}**.\n"
-                f"Bạn có thể ghi rõ hơn (ví dụ: *Phú Diễn, Bắc Từ Liêm*) "
-                f"hoặc cho phép tôi sử dụng GPS."
-            )
+        except Exception as geocode_err:
+            print(f"   ⚠️ Geocode fail, fallback Places: {geocode_err}")
+
+            # 2️⃣ FALLBACK sang Places Text Search
+            try:
+                lat, lng = self.places_text_to_latlng(normalized_location)
+                print("   -> Places Text Search OK")
+                return self.find_nearest_store(lat, lng)
+
+            except Exception as places_err:
+                print(f"❌ Places cũng fail: {places_err}")
+                return (
+                    f"Tôi chưa xác định được chính xác vị trí **{normalized_location}**.\n"
+                    f"Bạn có thể ghi rõ hơn (ví dụ: *Phú Diễn, Bắc Từ Liêm, Hà Nội*) "
+                    f"hoặc cho phép dùng GPS."
+                )
+
+
+    def places_text_to_latlng(self, text: str):
+        """
+        Dùng Google Places Text Search để lấy tọa độ
+        (ổn định cho phường / khu vực / địa danh mơ hồ)
+        """
+        api_key = settings.GOOGLE_MAPS_API_KEY
+        if not api_key:
+            raise Exception("Chưa cấu hình GOOGLE_MAPS_API_KEY")
+
+        url = "https://places.googleapis.com/v1/places:searchText"
+        headers = {
+            "Content-Type": "application/json",
+            "X-Goog-Api-Key": api_key,
+            "X-Goog-FieldMask": "places.location",
+        }
+
+        payload = {
+            "textQuery": text,
+            "languageCode": "vi",
+        }
+
+        response = requests.post(url, headers=headers, json=payload, timeout=10)
+        data = response.json()
+
+        places = data.get("places", [])
+        if not places:
+            raise Exception("Places Text Search không có kết quả")
+
+        loc = places[0]["location"]
+        return loc["latitude"], loc["longitude"]
+
+
+
 

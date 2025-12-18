@@ -119,31 +119,37 @@ function setupEventListeners() {
 // 3. LOGIC GỬI TIN (CÓ STREAMING)
 // ==========================================
 
+// =========================================================
+// HÀM GỬI TIN NHẮN (STREAMING + KEEP ALIVE)
+// =========================================================
 async function sendMessage(msgOverride = null) {
+    // 1. CHUẨN BỊ DỮ LIỆU GỬI ĐI
     const text = msgOverride || messageInput.value.trim();
     if (!text && !selectedFile) return;
 
     if (!msgOverride) {
         messageInput.value = '';
-        autoResizeTextarea();
+        autoResizeTextarea(); // Reset chiều cao ô nhập
     }
 
     const welcome = document.querySelector('.welcome-message');
     if(welcome) welcome.style.display = 'none';
 
+    // Chỉ hiện tin nhắn người dùng nếu không phải là lệnh GPS ngầm
     if (!text.startsWith("GPS:")) {
         addUserMessage(text);
     }
     
     setLoadingState(true);
 
-    // 1. TẠO BONG BÓNG CHAT VỚI CON TRỎ NHẤP NHÁY
+    // 2. TẠO BONG BÓNG CHAT CỦA BOT (MỚI)
     messageCount++;
     const botMsgDiv = document.createElement('div');
     botMsgDiv.className = 'message bot';
     botMsgDiv.id = `msg-${messageCount}`;
     
     // 👇 QUAN TRỌNG: Mặc định hiển thị con trỏ ngay lập tức để không bị trống
+    // Lúc này người dùng sẽ thấy bong bóng có con trỏ nhấp nháy
     botMsgDiv.innerHTML = `<div class="message-content"><span class="cursor-effect">█</span></div>`; 
     messagesArea.appendChild(botMsgDiv);
     scrollToBottom();
@@ -154,6 +160,7 @@ async function sendMessage(msgOverride = null) {
     try {
         const userId = localStorage.getItem("chat_session_id");
         
+        // Gọi API
         const response = await fetch(`${API_URL}/chat`, {
             method: 'POST',
             headers: { 
@@ -168,8 +175,7 @@ async function sendMessage(msgOverride = null) {
 
         if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
 
-        // 👇 SỬA LỖI TẠI ĐÂY: KHÔNG DÙNG response.json() NỮA
-        // Thay bằng bộ đọc luồng (Stream Reader)
+        // 3. XỬ LÝ STREAMING (ĐỌC DỮ LIỆU TỪNG CHÚT MỘT)
         const reader = response.body.getReader();
         const decoder = new TextDecoder("utf-8");
 
@@ -177,24 +183,31 @@ async function sendMessage(msgOverride = null) {
             const { done, value } = await reader.read();
             if (done) break;
 
-            // Giải mã từng đoạn dữ liệu nhận được
+            // Giải mã đoạn dữ liệu vừa nhận (chunk)
             const chunk = decoder.decode(value, { stream: true });
+            
+            // Cộng dồn vào biến tổng
             fullText += chunk;
 
-            // Cập nhật giao diện ngay lập tức
-            // Format cơ bản + Giữ con trỏ ở cuối
+            // Cập nhật giao diện NGAY LẬP TỨC
+            // formatText: giúp xuống dòng đúng
+            // Thêm con trỏ █ ở cuối để tạo hiệu ứng đang gõ
             contentDiv.innerHTML = formatText(fullText) + '<span class="cursor-effect">█</span>';
             
-            chatContent.scrollTop = chatContent.scrollHeight;
+            // Tự động cuộn xuống dưới cùng để người dùng đọc được
+            if (typeof chatContent !== 'undefined') {
+                chatContent.scrollTop = chatContent.scrollHeight;
+            }
         }
 
-        // 2. KẾT THÚC STREAM: RENDER THẺ SẢN PHẨM (NẾU CÓ)
+        // 4. KẾT THÚC STREAM: XỬ LÝ MARKDOWN VÀ THẺ SẢN PHẨM
+        // Lúc này dữ liệu đã về hết, ta xóa con trỏ đi và render thẻ đẹp
         processBackendResponse(fullText, contentDiv);
 
     } catch (error) {
         console.error("Stream Error:", error);
         // Nếu lỗi, hiện thông báo đỏ ngay trong bong bóng đó
-        contentDiv.innerHTML = formatText(fullText) + `<br><div style="color:red; font-weight:bold; margin-top:5px">⚠️ Lỗi: ${error.message}</div>`;
+        contentDiv.innerHTML = formatText(fullText) + `<br><div style="color:red; font-weight:bold; margin-top:5px; padding:5px; background:#ffe6e6; border-radius:4px;">⚠️ Lỗi: ${error.message}</div>`;
     } finally {
         setLoadingState(false);
     }
@@ -652,3 +665,18 @@ document.addEventListener('DOMContentLoaded', () => {
         }, 1000);
     }
 });
+
+
+function formatText(text) {
+    if (!text) return "";
+    let html = text;
+    // In đậm: **text** -> <b>text</b>
+    html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+    // In nghiêng: *text* -> <i>text</i>
+    html = html.replace(/(^|[^\*])\*(?!\*)(.*?)\*/g, '$1<i>$2</i>');
+    // Xuống dòng
+    html = html.replace(/\n/g, '<br>');
+    // Gạch đầu dòng
+    html = html.replace(/^- /gm, '• ');
+    return html;
+}

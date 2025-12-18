@@ -50,52 +50,54 @@ async def chat(inp: ChatInput):
     user_id = inp.user_id
     print(f"[CHAT] {user_id}: {message}")
 
-    # --- HÀM GENERATOR ĐỂ STREAM DỮ LIỆU ---
     async def response_stream():
         try:
-            # 1. ƯU TIÊN: XỬ LÝ GPS (Nút bấm)
+            # 🔥 QUAN TRỌNG: Gửi ngay 1 ký tự trắng để trình duyệt biết kết nối đã thành công
+            # Điều này ngăn Ngrok/Browser cắt kết nối do Time-out
+            yield " " 
+            await asyncio.sleep(0.05) 
+
+            # 1. XỬ LÝ GPS (Nhanh)
             if message.startswith("GPS:"):
+                # ... (giữ nguyên logic GPS) ...
                 try:
                     _, coords = message.split(":")
                     lat, lng = coords.split(",")
-                    # Tìm cửa hàng và trả về ngay (không cần cắt nhỏ)
                     reply = store_service.find_nearest_store(float(lat), float(lng))
                     yield reply
                     return
-                except Exception as e:
-                    yield "Lỗi xử lý định vị GPS."
+                except:
+                    yield "Lỗi GPS"
                     return
 
-            # 2. ƯU TIÊN: XỬ LÝ TÌM ĐỊA ĐIỂM (Nhập tay)
-            location_keywords = [
-                "tìm cửa hàng", "cửa hàng gần", "shop gần", "chi nhánh", 
-                "địa chỉ cửa hàng", "ở đâu", "gần đây không"
-            ]
-            
+            # 2. XỬ LÝ TÌM ĐỊA ĐIỂM (Nhanh)
+            # ... (giữ nguyên logic tìm địa điểm) ...
+            location_keywords = ["tìm cửa hàng", "cửa hàng gần", "shop gần", "chi nhánh", "địa chỉ", "ở đâu"]
             if any(keyword in message.lower() for keyword in location_keywords):
-                # Gọi hàm tìm kiếm địa điểm
                 reply = store_service.find_stores_by_text(message)
                 yield reply
                 return
 
-            # 3. CÒN LẠI: CHAT VỚI AI (Tư vấn sản phẩm)
-            # Giả lập hiệu ứng gõ máy (Streaming) cho câu trả lời của AI
+            # 3. XỬ LÝ AI CHAT (Lâu - Nguyên nhân gây lỗi)
+            # Gửi tín hiệu "Đang tìm kiếm..." để người dùng đỡ sốt ruột
+            yield "🔍 Đang tìm kiếm sản phẩm phù hợp...\n\n"
+            await asyncio.sleep(0.1)
+
+            # Bây giờ mới gọi hàm nặng (RAG + Gemini)
             full_response = agent_manager.get_response(user_id, message)
             
-            # Cắt nhỏ câu trả lời và gửi từ từ
-            chunk_size = 10  # Số ký tự mỗi lần gửi
+            # Cắt nhỏ kết quả để Stream
+            chunk_size = 50 # Gửi mỗi lần 50 ký tự cho nhanh
             for i in range(0, len(full_response), chunk_size):
                 chunk = full_response[i:i + chunk_size]
                 yield chunk
-                await asyncio.sleep(0.01) # Nghỉ 10ms để tạo hiệu ứng mượt
+                await asyncio.sleep(0.01)
 
         except Exception as e:
             print(f"[STREAM ERROR] {e}")
-            yield f"⚠️ Lỗi hệ thống: {str(e)}"
+            yield f"\n⚠️ Lỗi hệ thống: {str(e)}"
 
-    # Trả về dữ liệu dạng dòng chảy (Stream)
     return StreamingResponse(response_stream(), media_type="text/plain")
-
 # ===============================
 # PROXY IMAGE
 # ===============================

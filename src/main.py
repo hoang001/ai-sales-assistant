@@ -71,12 +71,22 @@ async def chat(inp: ChatInput):
                     return
 
             # 2. XỬ LÝ TÌM ĐỊA ĐIỂM (Nhanh)
-            # ... (giữ nguyên logic tìm địa điểm) ...
-            location_keywords = ["tìm cửa hàng", "cửa hàng gần", "shop gần", "chi nhánh", "địa chỉ", "ở đâu"]
+            location_keywords = [
+                "tìm cửa hàng",
+                "cửa hàng",
+                "shop",
+                "chi nhánh",
+                "cellphones"
+            ]
+
             if any(keyword in message.lower() for keyword in location_keywords):
                 reply = store_service.find_stores_by_text(message)
-                yield reply
-                return
+
+                # ⚠️ Nếu không xác định được địa điểm → cho AI xử lý tiếp
+                if "không xác định được địa điểm" not in reply.lower():
+                    yield reply
+                    return
+
 
             # 3. XỬ LÝ AI CHAT (Lâu - Nguyên nhân gây lỗi)
             # Gửi tín hiệu "Đang tìm kiếm..." để người dùng đỡ sốt ruột

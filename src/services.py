@@ -6,6 +6,7 @@ from .config import settings
 import unicodedata
 import requests
 import math
+import re
 
 GOOGLE_API_KEY = getattr(settings, "GOOGLE_MAPS_API_KEY", None)
 # Import Search Engine
@@ -351,30 +352,54 @@ class StoreService:
     # ==================================================
     # 4. HÀM TỔNG HỢP: TÌM CỬA HÀNG THEO TÊN (Text -> HTML)
     # ==================================================
-    def find_stores_by_text(self, input_text: str):
-        print(f"📍 Đang xử lý tìm kiếm địa điểm: {input_text}")
-        
-        # 1. Làm sạch từ khóa (Loại bỏ các từ thừa)
-        # Ví dụ: "tìm cửa hàng gần phú diễn" -> "phú diễn"
-        remove_words = ["tìm", "kiếm", "cửa", "hàng", "tại", "ở", "gần", "khu", "vực", "cellphones", "cho", "tôi"]
-        query = input_text.lower()
-        for word in remove_words:
-            query = query.replace(word, "")
-        
-        query = query.strip()
-        if not query:
-            return "Bạn muốn tìm cửa hàng ở đâu? Vui lòng ghi rõ địa điểm (Ví dụ: Cầu Giấy, Quận 1...)"
 
-        try:
-            # 2. Bước 1: Geocoding (Chữ -> Số)
-            lat, lng = self.geocode_location(query)
-            print(f"   -> Tọa độ tìm được: {lat}, {lng}")
+def find_stores_by_text(self, input_text: str):
+    print(f"📍 Đang xử lý tìm kiếm địa điểm: {input_text}")
 
-            # 3. Bước 2: Tìm cửa hàng (Số -> HTML)
-            return self.find_nearest_store(lat, lng)
+    # 1. Chuẩn hóa text
+    text = input_text.lower()
 
-        except Exception as e:
-            print(f"❌ Lỗi tìm kiếm text: {e}")
-            return f"Xin lỗi, tôi không xác định được địa điểm '**{query}**'. Bạn hãy thử ghi rõ hơn (Ví dụ: *Phú Diễn, Bắc Từ Liêm*)."
+    # 2. Loại bỏ các cụm không mang ý nghĩa địa lý
+    remove_patterns = [
+        r"tìm( giúp)?",
+        r"cửa hàng",
+        r"cellphones",
+        r"ở",
+        r"gần",
+        r"cho tôi",
+        r"giúp tôi",
+        r"giúp",
+    ]
+
+    for pattern in remove_patterns:
+        text = re.sub(pattern, "", text)
+
+    # 3. Chuẩn hóa khoảng trắng
+    location = re.sub(r"\s+", " ", text).strip(" ,")
+
+    if not location:
+        return (
+            "Bạn muốn tìm cửa hàng ở đâu? "
+            "Ví dụ: *Phú Diễn, Bắc Từ Liêm*"
+        )
+
+    try:
+        # 4. BẮT BUỘC thêm context địa lý
+        if "hà nội" not in location:
+            location = f"{location}, Bắc Từ Liêm, Hà Nội, Việt Nam"
+
+        print(f"   -> Query geocode: {location}")
+
+        lat, lng = self.geocode_location(location)
+        print(f"   -> Tọa độ: {lat}, {lng}")
+
+        return self.find_nearest_store(lat, lng)
+
+    except Exception as e:
+        print(f"❌ Lỗi tìm kiếm text: {e}")
+        return (
+            f"Xin lỗi, tôi không xác định được địa điểm **{location}**.\n"
+            f"Bạn có thể thử: *Phú Diễn, Bắc Từ Liêm*"
+        )
 
 store_service = StoreService()

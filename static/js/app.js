@@ -313,6 +313,30 @@ function processBackendResponse(markdownText, targetDiv = null) {
     }
 }
 
+// ================================
+// FORMAT TEXT (BẮT BUỘC PHẢI CÓ)
+// ================================
+function formatText(text) {
+    if (!text) return "";
+
+    let html = text;
+
+    // **bold**
+    html = html.replace(/\*\*(.*?)\*\*/g, '<b>$1</b>');
+
+    // *italic*
+    html = html.replace(/(^|[^\*])\*(?!\*)(.*?)\*/g, '$1<i>$2</i>');
+
+    // Xuống dòng
+    html = html.replace(/\n/g, '<br>');
+
+    // Gạch đầu dòng
+    html = html.replace(/^- /gm, '• ');
+
+    return html;
+}
+
+
 // 5. UI COMPONENTS
 function addUserMessage(text) {
     messageCount++;
